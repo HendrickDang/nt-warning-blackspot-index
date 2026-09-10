@@ -1,0 +1,20 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Tower A" },
+      "geometry": { "type": "Point", "coordinates": [133.0, -19.0] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Tower B" },
+      "geometry": { "type": "Point", "coordinates": [133.5, -18.8] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Tower C" },
+      "geometry": { "type": "Point", "coordinates": [132.5, -19.2] }
+    }
+  ]
+}
