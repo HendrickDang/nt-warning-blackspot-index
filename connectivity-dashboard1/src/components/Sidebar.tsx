@@ -8,36 +8,77 @@ import {
   PlusIcon,
   QuestionMarkCircleIcon,
   ArrowRightOnRectangleIcon,
+  SignalIcon,
 } from "@heroicons/react/24/outline";
 
 export default function Sidebar() {
   return (
-    <div className="w-64 h-screen bg-purple-100 flex flex-col justify-between p-4">
+    <aside className="w-64 h-screen bg-slate-900 text-slate-300 flex flex-col justify-between flex-shrink-0 border-r border-slate-800 font-sans select-none">
+      
       {/* Top Section */}
-      <div>
-        <h1 className="text-xl font-bold mb-6">NetPulse Network Ops</h1>
+      <div className="flex flex-col h-full">
+        
+        {/* Brand / Logo */}
+        <div className="h-16 flex items-center px-6 border-b border-slate-800 mb-6">
+          <div className="flex items-center gap-3 text-white">
+            <div className="bg-indigo-500/20 p-1.5 rounded-lg border border-indigo-500/30">
+              <SignalIcon className="h-5 w-5 text-indigo-400" />
+            </div>
+            <h1 className="text-lg font-bold tracking-wide">NetPulse <span className="text-indigo-400 font-medium">Ops</span></h1>
+          </div>
+        </div>
 
-        <nav className="flex flex-col gap-2">
-          <SidebarItem to="/map" label="Map" icon={<MapIcon className="h-5 w-5" />} />
+        {/* Navigation */}
+        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-3">
+            Overview
+          </div>
+          <SidebarItem to="/map" label="Live Map" icon={<MapIcon className="h-5 w-5" />} />
           <SidebarItem to="/analytics" label="Analytics" icon={<ChartBarIcon className="h-5 w-5" />} />
-          <SidebarItem to="/community" label="Community" icon={<UserGroupIcon className="h-5 w-5" />} />
-          <SidebarItem to="/nodes" label="Nodes" icon={<ServerStackIcon className="h-5 w-5" />} />
+          <SidebarItem to="/community" label="Communities" icon={<UserGroupIcon className="h-5 w-5" />} />
+          <SidebarItem to="/nodes" label="Node Directory" icon={<ServerStackIcon className="h-5 w-5" />} />
         </nav>
 
-        <button className="mt-4 w-full bg-blue-600 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-blue-700">
-          <PlusIcon className="h-5 w-5" />
-          Add Node
-        </button>
+        {/* Primary Action */}
+        <div className="px-4 py-6">
+          <button className="w-full bg-indigo-600 text-white py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-medium hover:bg-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all shadow-sm">
+            <PlusIcon className="h-5 w-5" strokeWidth={2.5} />
+            Deploy Node
+          </button>
+        </div>
       </div>
 
-      {/* Bottom Section */}
-      <div className="flex flex-col gap-2">
-        <SidebarItem to="/help" label="Help" icon={<QuestionMarkCircleIcon className="h-5 w-5" />} />
-        <SidebarItem to="/logout" label="Logout" icon={<ArrowRightOnRectangleIcon className="h-5 w-5" />} />
+      {/* Bottom Section (Settings & Profile) */}
+      <div className="px-3 py-4 border-t border-slate-800 bg-slate-900/50">
+        <div className="space-y-1 mb-4">
+          <SidebarItem to="/help" label="Help & Support" icon={<QuestionMarkCircleIcon className="h-5 w-5" />} />
+        </div>
+        
+        {/* User Snippet / Logout */}
+        <div className="flex items-center justify-between px-3 py-2 mt-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="h-8 w-8 rounded-full bg-indigo-900 text-indigo-300 flex items-center justify-center font-bold text-sm border border-indigo-500/30 flex-shrink-0">
+              JD
+            </div>
+            <div className="truncate">
+              <p className="text-sm font-medium text-white truncate">John Doe</p>
+              <p className="text-xs text-slate-400 truncate">Admin</p>
+            </div>
+          </div>
+          <button 
+            title="Logout"
+            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-md transition-colors"
+          >
+            <ArrowRightOnRectangleIcon className="h-5 w-5" />
+          </button>
+        </div>
       </div>
-    </div>
+      
+    </aside>
   );
 }
+
+// --- Subcomponents ---
 
 interface SidebarItemProps {
   to: string;
@@ -50,12 +91,18 @@ function SidebarItem({ to, label, icon }: SidebarItemProps) {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2 rounded cursor-pointer transition
-        ${isActive ? "bg-blue-500 text-white" : "text-gray-700 hover:bg-purple-200"}`
+        `group flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all duration-200 border-l-2
+        ${
+          isActive
+            ? "bg-indigo-500/10 text-indigo-400 border-indigo-500 font-medium"
+            : "border-transparent text-slate-400 hover:text-slate-100 hover:bg-slate-800 hover:border-slate-700"
+        }`
       }
     >
-      {icon}
-      <span className="font-medium">{label}</span>
+      <div className="flex-shrink-0">
+        {icon}
+      </div>
+      <span className="truncate">{label}</span>
     </NavLink>
   );
 }
