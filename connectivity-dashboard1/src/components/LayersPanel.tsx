@@ -4,11 +4,6 @@ export interface LayerState {
   towers: boolean;
   communities: boolean;
   coverage: boolean;
-  activeNodes: boolean;
-  offlineNodes: boolean;
-  communityHubs: boolean;
-  nodeDensity: boolean;
-  signalStrength: boolean;
   baseMap: boolean;
   ntBoundary: boolean;
 }
@@ -72,61 +67,13 @@ export default function LayersPanel({ layers, setLayers }: Props) {
         {/* Network Infrastructure */}
         <Section
           title="Network Infrastructure"
-          onSelectAll={() =>
-            toggleSection(
-              ['towers', 'activeNodes', 'offlineNodes', 'communityHubs'],
-              true
-            )
-          }
-          onClearAll={() =>
-            toggleSection(
-              ['towers', 'activeNodes', 'offlineNodes', 'communityHubs'],
-              false
-            )
-          }
+          onSelectAll={() => toggleSection(['towers'], true)}
+          onClearAll={() => toggleSection(['towers'], false)}
         >
           <CheckboxItem
             label="Cell Towers"
             checked={layers.towers}
             onChange={() => toggle('towers')}
-          />
-          <CheckboxItem
-            label="Active Nodes"
-            badge="Online"
-            checked={layers.activeNodes}
-            onChange={() => toggle('activeNodes')}
-          />
-          <CheckboxItem
-            label="Offline Nodes"
-            checked={layers.offlineNodes}
-            onChange={() => toggle('offlineNodes')}
-          />
-          <CheckboxItem
-            label="Community Hubs"
-            checked={layers.communityHubs}
-            onChange={() => toggle('communityHubs')}
-          />
-        </Section>
-
-        {/* Analytics & Density */}
-        <Section
-          title="Analytics & Heatmaps"
-          onSelectAll={() =>
-            toggleSection(['nodeDensity', 'signalStrength'], true)
-          }
-          onClearAll={() =>
-            toggleSection(['nodeDensity', 'signalStrength'], false)
-          }
-        >
-          <CheckboxItem
-            label="Node Density"
-            checked={layers.nodeDensity}
-            onChange={() => toggle('nodeDensity')}
-          />
-          <CheckboxItem
-            label="Signal Strength"
-            checked={layers.signalStrength}
-            onChange={() => toggle('signalStrength')}
           />
         </Section>
 

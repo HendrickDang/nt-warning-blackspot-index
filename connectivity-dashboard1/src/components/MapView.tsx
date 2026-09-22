@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import L, { Map as LeafletMap, GeoJSON, TileLayer } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -20,6 +21,7 @@ interface Props {
 export default function MapView({ layers }: Props) {
   const mapRef = useRef<LeafletMap | null>(null);
   const baseMapRef = useRef<TileLayer | null>(null);
+  const [searchParams] = useSearchParams();
   
   // Cache fetched geoJSON layers so we don't re-fetch on every toggle
   const geoCache = useRef<Record<string, GeoJSON>>({});
@@ -57,6 +59,31 @@ export default function MapView({ layers }: Props) {
     };
   }, []);
 
+  // Handle URL query parameters (e.g. from Communities page "View on Map")
+  useEffect(() => {
+    const latStr = searchParams.get("lat");
+    const lngStr = searchParams.get("lng");
+    const nameStr = searchParams.get("name");
+    const map = mapRef.current;
+
+    if (map && latStr && lngStr) {
+      const lat = parseFloat(latStr);
+      const lng = parseFloat(lngStr);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        map.flyTo([lat, lng], 10, { duration: 1.5 });
+        L.popup()
+          .setLatLng([lat, lng])
+          .setContent(`
+            <div style="font-family: system-ui, sans-serif; padding: 2px;">
+              <strong style="color: #4f46e5; font-size: 13px;">${nameStr || "Target Community"}</strong>
+              <div style="color: #64748b; font-size: 11px; margin-top: 2px;">Selected from Directory</div>
+            </div>
+          `)
+          .openOn(map);
+      }
+    }
+  }, [searchParams]);
+
   // 2. SYNC LAYERS (Runs when 'layers' prop changes)
   useEffect(() => {
     const map = mapRef.current;
@@ -86,7 +113,12 @@ export default function MapView({ layers }: Props) {
         // If not cached, fetch it once and save it
         else if (!cachedLayer) {
           try {
-            const response = await fetch(url);
+            let response = await fetch(url);
+            if (!response.ok) {
+              const cleanUrl = url.split("?")[0];
+              const fallbackUrl = cleanUrl.startsWith("/") ? cleanUrl.replace(/^\/data\//, "src/data/") : cleanUrl;
+              response = await fetch(fallbackUrl);
+            }
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
             const data = await response.json();
@@ -111,7 +143,7 @@ export default function MapView({ layers }: Props) {
     };
 
     // --- Trigger Data Syncs ---
-    syncGeoJsonLayer("communities", "src/data/communities.geojson", {
+    syncGeoJsonLayer("communities", "/data/communities.geojson?v=2", {
       pane: "communitiesPane",
       pointToLayer: (_, latlng) =>
         L.circleMarker(latlng, {
@@ -121,18 +153,44 @@ export default function MapView({ layers }: Props) {
           weight: 2,
           fillOpacity: 0.9,
         }),
-    });
-
-    syncGeoJsonLayer("coverage", "src/data/coverage.geojson", {
-      pane: "coveragePane",
-      style: {
-        color: "#3b82f6", // Tailwind blue-500
-        weight: 2,
-        fillOpacity: 0.15,
+      onEachFeature: (feature, layer) => {
+        const p = feature.properties;
+        if (p) {
+          layer.bindPopup(`
+            <div style="font-family: system-ui, -apple-system, sans-serif; min-width: 200px; padding: 2px;">
+              <h3 style="margin: 0 0 4px; font-weight: 700; font-size: 14px; color: #0f172a;">${p.community_name || "Community"}</h3>
+              <div style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: #e0e7ff; color: #3730a3; margin-bottom: 6px;">
+                ${p.community_type || "Outstation"} • ${p.ntg_region || "NT"}
+              </div>
+              <div style="font-size: 12px; color: #334155; line-height: 1.5;">
+                <div><strong>Council:</strong> ${p.local_govt_council || "N/A"}</div>
+                <div><strong>Population:</strong> ${p.population_count !== null && p.population_count !== undefined ? p.population_count.toLocaleString() : "Not recorded"}</div>
+                <div><strong>Language:</strong> ${p.main_language || "Not recorded"}</div>
+              </div>
+              ${
+                p.bushtel_url
+                  ? `<div style="margin-top: 8px; border-top: 1px solid #f1f5f9; pt: 6px;">
+                      <a href="${p.bushtel_url}" target="_blank" rel="noreferrer" style="color: #4f46e5; text-decoration: underline; font-size: 11px; font-weight: 600;">View BushTel Profile &rarr;</a>
+                    </div>`
+                  : ""
+              }
+            </div>
+          `);
+        }
       },
     });
 
-    syncGeoJsonLayer("ntBoundary", "src/data/nt_boundary.geojson", {
+    syncGeoJsonLayer("coverage", "/data/coverage.geojson?v=2", {
+      pane: "coveragePane",
+      style: {
+        color: "#2563eb", // Tailwind blue-600
+        weight: 1.5,
+        fillColor: "#3b82f6", // Tailwind blue-500
+        fillOpacity: 0.25,
+      },
+    });
+
+    syncGeoJsonLayer("ntBoundary", "/data/nt_boundary.geojson?v=2", {
       style: {
         color: "#ef4444", // Tailwind red-500
         weight: 2,
@@ -142,10 +200,30 @@ export default function MapView({ layers }: Props) {
       },
     });
 
-    /* 
-      Add future layers here easily:
-      syncGeoJsonLayer("activeNodes", "src/data/active_nodes.geojson", { ... });
-    */
+    syncGeoJsonLayer("towers", "/data/towers.geojson?v=2", {
+      pane: "nodesPane",
+      pointToLayer: (_, latlng) =>
+        L.circleMarker(latlng, {
+          radius: 5,
+          fillColor: "#10b981",
+          color: "#047857",
+          weight: 2,
+          fillOpacity: 0.9,
+        }),
+      onEachFeature: (feature, layer) => {
+        const p = feature.properties;
+        if (p) {
+          layer.bindPopup(`
+            <div style="font-family: system-ui, sans-serif; padding: 2px;">
+              <strong style="color: #047857; font-size: 13px;">${p.name || "Cell Tower"}</strong>
+              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                ${p.carrier ? `Carrier: ${p.carrier}` : "Telecommunication Site"}
+              </div>
+            </div>
+          `);
+        }
+      },
+    });
 
   }, [layers]); // Only re-runs when the `layers` state changes
 

@@ -1,10 +1,9 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import type { ReactElement } from "react";
 import {
   MapIcon,
   ChartBarIcon,
   UserGroupIcon,
-  ServerStackIcon,
   PlusIcon,
   QuestionMarkCircleIcon,
   ArrowRightOnRectangleIcon,
@@ -12,38 +11,44 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+
   return (
-    <aside className="w-64 h-screen bg-slate-900 text-slate-300 flex flex-col justify-between flex-shrink-0 border-r border-slate-800 font-sans select-none">
+    <aside className="w-64 h-screen bg-slate-900 text-slate-300 flex flex-col justify-between flex-shrink-0 border-r border-slate-800 font-sans select-none z-20">
       
       {/* Top Section */}
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full overflow-hidden">
         
         {/* Brand / Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-slate-800 mb-6">
+        <div className="h-16 flex items-center px-5 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3 text-white">
-            <div className="bg-indigo-500/20 p-1.5 rounded-lg border border-indigo-500/30">
+            <div className="bg-indigo-500/20 p-2 rounded-lg border border-indigo-500/30 shrink-0">
               <SignalIcon className="h-5 w-5 text-indigo-400" />
             </div>
-            <h1 className="text-lg font-bold tracking-wide">NetPulse <span className="text-indigo-400 font-medium">Ops</span></h1>
+            <div className="text-base font-bold tracking-wide leading-none whitespace-nowrap">
+              NetPulse <span className="text-indigo-400 font-medium">Ops</span>
+            </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-3">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3">
             Overview
           </div>
           <SidebarItem to="/map" label="Live Map" icon={<MapIcon className="h-5 w-5" />} />
           <SidebarItem to="/analytics" label="Analytics" icon={<ChartBarIcon className="h-5 w-5" />} />
           <SidebarItem to="/community" label="Communities" icon={<UserGroupIcon className="h-5 w-5" />} />
-          <SidebarItem to="/nodes" label="Node Directory" icon={<ServerStackIcon className="h-5 w-5" />} />
         </nav>
 
         {/* Primary Action */}
-        <div className="px-4 py-6">
-          <button className="w-full bg-indigo-600 text-white py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-medium hover:bg-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all shadow-sm">
-            <PlusIcon className="h-5 w-5" strokeWidth={2.5} />
-            Deploy Node
+        <div className="px-4 py-4 shrink-0">
+          <button
+            onClick={() => navigate("/nodes")}
+            className="w-full bg-indigo-600 text-white py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-medium hover:bg-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all shadow-sm text-sm"
+          >
+            <PlusIcon className="h-4 w-4" strokeWidth={2.5} />
+            <span>Deploy Node</span>
           </button>
         </div>
       </div>
