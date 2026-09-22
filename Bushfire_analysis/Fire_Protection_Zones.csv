@@ -1,0 +1,5 @@
+CUSTODIAN,BND_TYPE,SHORT_NAME,GAZ_NAME,GAZ_NO,GAZ_DATE,NOTES,Shape_Leng,Shape_Area,AREA_KM2
+"Bushfires NT, Department of Environment and Natural Resources",Fire Protection Zone,Northern,Northern Fire Protection Zone,G21,2000-01-12,revokes 130km rad of Darwin PO and Daly River FPZ (G47 21/11/1980); and Douglas/Daly FPZ (G39 3/10/1980 and G2 16/01/1985),13.5162532741,3.6981643329,45009.76
+"Bushfires NT, Department of Environment and Natural Resources",Fire Protection Zone,Alice Springs,Fire Protection Zone Alice Springs,G35,2019-08-28,revokes 50km radius from Airport Control Tower (G17 27/04/1979),7.66014383059,1.02664580521,11595.08
+"Bushfires NT, Department of Environment and Natural Resources",Fire Protection Zone,Tennant Creek,Fire Protection Zone Tennant Creek,G35,2019-08-28,revokes 50km radius from Post Office (G48 4/12/1981),2.85566269426,0.139978159984,1624.57
+"Bushfires NT, Department of Environment and Natural Resources",Fire Protection Zone,Katherine,Fire Protection Zone Katherine,TBA,,revokes 50km radius from Post Office (G48 12/01/2000),4.0855524399,0.27481090948,3277.41

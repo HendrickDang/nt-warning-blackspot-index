@@ -1,0 +1,6 @@
+OBJECTID,CUSTODIAN,BND_TYPE,SHORT_NAME,GAZ_NAME,GAZ_NO,GAZ_DATE,NOTES,SHAPE_Leng,SHAPE_Area,AREA_KM2
+1,"Bushfires NT, Department of Environment and Natural Resources",Fire Management Zone,ALICE SPRINGS,Alice Springs Fire Management Zone,G45,2008-11-12,Revokes previous Alice Springs East and West,36.8941323175,52.1611050399,592109.49
+2,"Bushfires NT, Department of Environment and Natural Resources",Fire Management Zone,ARNHEM,Arnhem Fire Management Zone,G44,2014-11-05,"Revokes: G45, 12/11/2008",74.899246488,10.3823648511,124635.97
+3,"Bushfires NT, Department of Environment and Natural Resources",Fire Management Zone,BARKLY,Barkly Fire Management Zone,G45,2008-11-12,,25.4667789436,23.7367449483,276428.72
+4,"Bushfires NT, Department of Environment and Natural Resources",Fire Management Zone,SAVANNA,Savanna Fire Management Zone,G44,2014-11-05,"Revokes: G45, 12/11/2008",43.1420838841,24.7963361668,293428.86
+5,"Bushfires NT, Department of Environment and Natural Resources",Fire Management Zone,VERNON ARAFURA,Vernon Arafura Fire Management Zone,S118,2016-12-14,"Revokes: G21, 26 May 2004; G45, 12/11/2008; Modified 14/12/2016 based on No. S118 Gazette (ISSN-0157-833X)",21.6705271969,4.9347070245,59062.64
