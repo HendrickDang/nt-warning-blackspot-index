@@ -1,5 +1,12 @@
 // src/utils/wbiCalculator.ts
 
+
+export interface BushfireRiskRecord {
+  COMMUNITY: string;
+  RATING: string;
+  [key: string]: any;
+}
+
 export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -96,7 +103,25 @@ export function extractNTTowerSites(allTowersGeoJSON: any): Array<{
   return towerSites;
 }
 
-export function computeCommunityWBI(communityFeature: any, towerSites: any[] = [], covRings: any[] = []) {
+/**
+ * Builds a fast lookup Map from parsed Community Bushfire Risk CSV records.
+ */
+export function createBushfireRiskMap(csvRecords: BushfireRiskRecord[]): Map<string, string> {
+  const riskMap = new Map<string, string>();
+  for (const row of csvRecords) {
+    if (row.COMMUNITY) {
+      riskMap.set(row.COMMUNITY.trim().toLowerCase(), row.RATING ? row.RATING.trim() : "Low");
+    }
+  }
+  return riskMap;
+}
+
+export function computeCommunityWBI(
+  communityFeature: any,
+  towerSites: any[] = [],
+  covRings: any[] = [],
+  bushfireRiskMap?: Map<string, string>
+) {
   const props = { ...communityFeature.properties };
   const [lon, lat] = communityFeature.geometry.coordinates;
 
@@ -129,20 +154,31 @@ export function computeCommunityWBI(communityFeature: any, towerSites: any[] = [
   const connectivityGap = !isCovered ? (nearbyCarriers.size > 0 ? 80 : 100) : (nearbyCarriers.size >= 2 ? 10 : 30);
 
   // Pillar 2: Natural Hazard Exposure
-  let hazardScore = lat > -14 ? 90 : lat > -17 ? 75 : lat > -20 ? 65 : lat > -24 ? 60 : 55;
+  // Looks up risk rating from feature properties or provided CSV risk lookup map
+  const communityName = (props.community_name || props.COMMUNITY || "").toString().trim().toLowerCase();
+  
+  let rawRating = props.RATING || props.rating;
+  if (!rawRating && bushfireRiskMap) {
+    rawRating = bushfireRiskMap.get(communityName);
+  }
 
-  if (["Major", "Town", "City"].includes(props.community_type)) {
-    hazardScore = Math.max(0, hazardScore - 15);
-  } else if (props.community_type === "Village" || props.community_type === "Minor") {
-    hazardScore = Math.max(0, hazardScore - 5);
+  const bushfireRating = (rawRating || "").toString().trim().toLowerCase();
+  
+  let hazardScore = 50; // Default baseline score
+  if (bushfireRating === "high") {
+    hazardScore = 90;
+  } else if (bushfireRating === "moderate" || bushfireRating === "medium") {
+    hazardScore = 65;
+  } else if (bushfireRating === "low") {
+    hazardScore = 30;
   }
 
   // Pillar 3: Infrastructure Proximity
   let proximityScore = minDist > 100 ? 100 : minDist > 50 ? 80 : minDist > 35 ? 60 : minDist > 15 ? 40 : minDist > 5 ? 15 : 5;
 
   // Pillar 4: Digital Exclusion
-  const ctype = props.community_type || "Family Outstation";
-  const pop = props.population_count || 0;
+  const ctype = props.community_type || props.COMMTYPE || "Family Outstation";
+  const pop = props.population_count || props.POPULATION || 0;
   let digitalExclusion = 80;
 
   if (ctype === "Family Outstation") digitalExclusion = pop <= 10 ? 95 : pop <= 30 ? 88 : 82;
@@ -158,7 +194,7 @@ export function computeCommunityWBI(communityFeature: any, towerSites: any[] = [
     digitalExclusion = Math.min(100, digitalExclusion + 5);
   }
 
-  // Composite Score
+  // Composite Score Calculation
   const wbi = Math.round(
     0.35 * connectivityGap +
     0.25 * hazardScore +

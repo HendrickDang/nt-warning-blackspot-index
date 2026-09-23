@@ -3,6 +3,7 @@ import {
   ShieldCheckIcon,
   DocumentTextIcon,
   MapIcon,
+  CalculatorIcon,
 } from "@heroicons/react/24/outline";
 
 export default function HelpPage() {
@@ -14,11 +15,12 @@ export default function HelpPage() {
           <h1 className="text-2xl font-bold text-slate-900 my-0">Documentation & Methodology</h1>
         </div>
         <p className="text-xs text-slate-500 mt-1">
-          NT Warning Blackspot Index & Remote Connectivity Operations Guide
+          NT Warning Blackspot Index (WBI) & Remote Connectivity Operations Guide
         </p>
       </div>
 
       <div className="max-w-4xl space-y-6 mt-6">
+        {/* Project Background */}
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <ShieldCheckIcon className="h-5 w-5 text-indigo-600" />
@@ -26,12 +28,41 @@ export default function HelpPage() {
           </h2>
           <p className="text-xs text-slate-600 leading-relaxed mt-2">
             This dashboard was developed for the <strong>CDU IT Code Fair 2026 | Data Innovation Challenge</strong> under
-            the theme <em>Remote Connectivity</em>. It monitors bushfire hazard vulnerability and emergency warning
-            reachability across <strong>792 remote communities and homelands</strong> throughout the Northern Territory of
-            Australia.
+            the theme <em>Remote Connectivity</em>. It evaluates bushfire hazard exposure and emergency warning
+            reachability across remote communities and homelands throughout the Northern Territory of Australia.
           </p>
         </div>
 
+        {/* WBI Calculation Methodology */}
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <CalculatorIcon className="h-5 w-5 text-indigo-600" />
+            Warning Blackspot Index (WBI) Framework
+          </h2>
+          <p className="text-xs text-slate-600 leading-relaxed mt-2">
+            The composite <strong>Warning Blackspot Index (WBI)</strong> evaluates community risk on a scale of 0 to 100 using four weighted pillars:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-xs">
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <strong className="text-indigo-900 block font-semibold">1. Connectivity Gap (35%)</strong>
+              Evaluates cellular network coverage contours (Telstra/Optus) and multi-carrier redundancy in the immediate area.
+            </div>
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <strong className="text-indigo-900 block font-semibold">2. Natural Hazard Exposure (25%)</strong>
+              Mapped directly from the official <code>Community_Bushfire_Risk.csv</code> rating (High = 90, Moderate = 65, Low = 30).
+            </div>
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <strong className="text-indigo-900 block font-semibold">3. Infrastructure Proximity (20%)</strong>
+              Measures geographical distance to the nearest active communications tower site using Haversine calculation.
+            </div>
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <strong className="text-indigo-900 block font-semibold">4. Digital Exclusion (20%)</strong>
+              Accounts for community scale (outstation vs major town) and primary spoken language barriers.
+            </div>
+          </div>
+        </div>
+
+        {/* Data Sources & Provenance */}
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <DocumentTextIcon className="h-5 w-5 text-indigo-600" />
@@ -40,33 +71,36 @@ export default function HelpPage() {
           <div className="mt-3 space-y-2.5 text-xs text-slate-600">
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
               <strong className="text-slate-800 block">Com_BushTel_Profile_CMC_2024 (792 Communities)</strong>
-              Custodian: Department of Infrastructure, Transport, Regional Development, Communications and the Arts / BushTel NT. Contains official coordinates, community names, council, electorate, language, and population records.
+              Custodians: BushTel NT / DIPL. Contains official geospatial coordinates, community names, councils, languages, and population records.
             </div>
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-              <strong className="text-slate-800 block">NT Remote Areas Mobile Coverage (Carrier Contours)</strong>
-              Custodian: Spatial Infrastructure & Carriers. Models predicted cellular coverage footprints (Telstra / Optus 3G/4G/5G).
+              <strong className="text-slate-800 block">Community_Bushfire_Risk.csv</strong>
+              Custodians: Bushfires NT / NT Fire and Emergency Services (NTFES). Provides bushfire hazard risk ratings, fire plan status, firebreaks, and fuel reduction status.
+            </div>
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+              <strong className="text-slate-800 block">NT Remote Mobile Coverage & Towers</strong>
+              Custodians: ACMA / Carrier Data. Contains cell tower coordinates and cellular coverage contours.
             </div>
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
               <strong className="text-slate-800 block">Northern Territory Administrative Boundary</strong>
-              Custodian: NT Land Information System (LIS) / DLPE. Official geospatial polygon boundary of the Northern Territory.
+              Custodian: NT Land Information System (LIS). Official geospatial boundary polygon of the Northern Territory.
             </div>
           </div>
         </div>
 
+        {/* How to Use */}
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <MapIcon className="h-5 w-5 text-indigo-600" />
             How to Use the Platform
           </h2>
           <ul className="list-disc list-inside mt-2 space-y-1 text-xs text-slate-600 leading-relaxed">
-            <li><strong>Live Map:</strong> Toggle mobile coverage polygons, remote community markers, and territorial boundaries. Click any marker to view the community profile and population.</li>
-            <li><strong>Communities Directory:</strong> Search and filter through all 792 communities by region, type, council, and population. Directly fly to any community on the live map.</li>
-            <li><strong>Analytics:</strong> Review regional population reachability, blackspot counts, and community type distributions.</li>
-            <li><strong>Node Directory:</strong> Monitor cellular masts, solar repeaters, and satellite gateways across the NT network.</li>
+            <li><strong>Live Map:</strong> Toggle mobile coverage contours, remote community markers, and regional boundaries. Click any marker to view its WBI score and hazard breakdown.</li>
+            <li><strong>Communities Directory:</strong> Search and filter through communities by region, type, council, population, or WBI risk tier. Click any entry to fly directly to it on the map.</li>
+            <li><strong>Analytics:</strong> Review regional vulnerability trends, blackspot counts, and population exposure metrics across Northern Territory regions.</li>
           </ul>
         </div>
       </div>
     </div>
   );
 }
-

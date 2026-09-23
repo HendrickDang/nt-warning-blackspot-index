@@ -4,7 +4,6 @@ import {
   MapIcon,
   ChartBarIcon,
   UserGroupIcon,
-  PlusIcon,
   QuestionMarkCircleIcon,
   ArrowRightOnRectangleIcon,
   SignalIcon,
@@ -26,7 +25,7 @@ export default function Sidebar() {
               <SignalIcon className="h-5 w-5 text-indigo-400" />
             </div>
             <div className="text-base font-bold tracking-wide leading-none whitespace-nowrap">
-              NetPulse <span className="text-indigo-400 font-medium">Ops</span>
+              Blackspot <span className="text-indigo-400 font-medium">Ops</span>
             </div>
           </div>
         </div>
@@ -40,17 +39,6 @@ export default function Sidebar() {
           <SidebarItem to="/analytics" label="Analytics" icon={<ChartBarIcon className="h-5 w-5" />} />
           <SidebarItem to="/community" label="Communities" icon={<UserGroupIcon className="h-5 w-5" />} />
         </nav>
-
-        {/* Primary Action */}
-        <div className="px-4 py-4 shrink-0">
-          <button
-            onClick={() => navigate("/nodes")}
-            className="w-full bg-indigo-600 text-white py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-medium hover:bg-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all shadow-sm text-sm"
-          >
-            <PlusIcon className="h-4 w-4" strokeWidth={2.5} />
-            <span>Deploy Node</span>
-          </button>
-        </div>
       </div>
 
       {/* Bottom Section (Settings & Profile) */}

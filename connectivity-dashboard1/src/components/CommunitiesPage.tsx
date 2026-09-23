@@ -17,12 +17,14 @@ import {
   SignalIcon,
 } from "@heroicons/react/24/outline";
 
-// Import the WBI calculation utilities
+// Import the updated WBI calculation utilities
 import {
   buildCoverageIndex,
   extractNTTowerSites,
+  createBushfireRiskMap,
   computeCommunityWBI,
 } from "../utils/wbiCalculators";
+
 export interface CommunityFeature {
   type: string;
   properties: {
@@ -42,6 +44,7 @@ export interface CommunityFeature {
     population_count: number | null;
     longitude: number;
     latitude: number;
+    RATING?: string;
     // WBI Enriched Fields
     wbi_score?: number;
     wbi_tier?: "Critical" | "High" | "Moderate" | "Low";
@@ -90,16 +93,32 @@ export default function CommunitiesPage() {
   // Selected for detail modal
   const [selectedCommunity, setSelectedCommunity] = useState<CommunityFeature | null>(null);
 
+  // Helper to parse simple CSV text into objects
+  const parseCSV = (csvText: string) => {
+    const lines = csvText.split("\n").filter((l) => l.trim().length > 0);
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(",").map((h) => h.trim());
+    return lines.slice(1).map((line) => {
+      const values = line.split(",").map((v) => v.trim());
+      const row: Record<string, string> = {};
+      headers.forEach((h, idx) => {
+        row[h] = values[idx] || "";
+      });
+      return row;
+    });
+  };
+
   // Load and compute WBI pipeline client-side
   useEffect(() => {
     setLoading(true);
 
     async function loadDataAndComputeWBI() {
       try {
-        const [commRes, covRes, towerRes] = await Promise.all([
+        const [commRes, covRes, towerRes, riskRes] = await Promise.all([
           fetch("/data/communities.geojson").catch(() => fetch("src/data/communities.geojson")),
           fetch("/data/coverage.geojson").catch(() => fetch("src/data/coverage.geojson")),
           fetch("/data/towers.geojson").catch(() => fetch("src/data/towers.geojson")),
+          fetch("/data/Community_Bushfire_Risk.csv").catch(() => fetch("src/data/Community_Bushfire_Risk.csv")),
         ]);
 
         if (!commRes.ok) throw new Error("Failed to load communities dataset");
@@ -108,14 +127,21 @@ export default function CommunitiesPage() {
         const covData = covRes.ok ? await covRes.json() : null;
         const towerData = towerRes.ok ? await towerRes.json() : null;
 
+        let bushfireRiskMap: Map<string, string> | undefined;
+        if (riskRes.ok) {
+          const csvText = await riskRes.text();
+          const parsedRecords = parseCSV(csvText);
+          bushfireRiskMap = createBushfireRiskMap(parsedRecords as any);
+        }
+
         // Process spatial indexes if extra datasets exist
         const covRings = covData ? buildCoverageIndex(covData) : [];
         const towerSites = towerData ? extractNTTowerSites(towerData) : [];
 
-        // Enrich communities with WBI scores
+        // Enrich communities with WBI scores using CSV risk ratings
         const enrichedFeatures = commData.features.map((feature: CommunityFeature) => ({
           ...feature,
-          properties: computeCommunityWBI(feature, towerSites, covRings),
+          properties: computeCommunityWBI(feature, towerSites, covRings, bushfireRiskMap),
         }));
 
         setCommunities(enrichedFeatures);
@@ -325,7 +351,7 @@ export default function CommunitiesPage() {
               </h1>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Live multi-dimensional Warning Blackspot Index (WBI) calculated across 792 remote locations
+              Live multi-dimensional Warning Blackspot Index (WBI) calculated using CSV bushfire hazard ratings
             </p>
           </div>
 
