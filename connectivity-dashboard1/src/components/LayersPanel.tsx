@@ -1,12 +1,6 @@
 import React from 'react';
-
-export interface LayerState {
-  towers: boolean;
-  communities: boolean;
-  coverage: boolean;
-  baseMap: boolean;
-  ntBoundary: boolean;
-}
+import type { LayerState } from '../types';
+import { BURNT_AREA_MONTHS, HOTSPOT_BANDS } from '../bushfire';
 
 interface Props {
   layers: LayerState;
@@ -62,6 +56,32 @@ export default function LayersPanel({ layers, setLayers }: Props) {
             checked={layers.coverage}
             onChange={() => toggle('coverage')}
           />
+        </Section>
+
+        {/* Live Bushfire (NAFI / FireNorth WMS) */}
+        <Section
+          title="Bushfire (Live)"
+          onSelectAll={() =>
+            toggleSection(['activeBushfires', 'burntAreas'], true)
+          }
+          onClearAll={() =>
+            toggleSection(['activeBushfires', 'burntAreas'], false)
+          }
+        >
+          <CheckboxItem
+            label="Active Fire Hotspots (24h)"
+            badge="Live"
+            checked={layers.activeBushfires}
+            onChange={() => toggle('activeBushfires')}
+          />
+          {layers.activeBushfires && <HotspotLegend />}
+
+          <CheckboxItem
+            label="Burnt Areas (Current Year)"
+            checked={layers.burntAreas}
+            onChange={() => toggle('burntAreas')}
+          />
+          {layers.burntAreas && <BurntAreaLegend />}
         </Section>
 
         {/* Network Infrastructure */}
@@ -183,5 +203,57 @@ function CheckboxItem({
         </span>
       )}
     </label>
+  );
+}
+
+function HotspotLegend() {
+  return (
+    <div className="mb-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+        Hotspot age (satellite)
+      </p>
+      <ul className="space-y-1.5">
+        {HOTSPOT_BANDS.map((band) => (
+          <li key={band.label} className="flex items-center gap-2 text-xs text-slate-600">
+            <span
+              className="w-4 text-center text-sm leading-none"
+              style={{ color: band.color }}
+              aria-hidden="true"
+            >
+              {band.glyph}
+            </span>
+            <span>{band.label}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[10px] text-slate-400 mt-2 leading-snug">
+        Symbol size does not indicate fire size. Locations accurate to ~1.5 km.
+      </p>
+    </div>
+  );
+}
+
+function BurntAreaLegend() {
+  return (
+    <div className="mb-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+        Burnt area — colour = month burnt
+      </p>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+        {BURNT_AREA_MONTHS.map((month) => (
+          <div key={month.label} className="flex items-center gap-2 text-xs text-slate-600">
+            <span
+              className="h-3.5 w-3.5 rounded-sm border border-black/10 shrink-0"
+              style={{ backgroundColor: month.color, opacity: 0.6 }}
+              aria-hidden="true"
+            />
+            <span>{month.label}</span>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-slate-400 mt-2 leading-snug">
+        Warmer colours (yellow → pink → purple) mark the hotter, later months when fires are generally more intense.
+      </p>
+    </div>
   );
 }

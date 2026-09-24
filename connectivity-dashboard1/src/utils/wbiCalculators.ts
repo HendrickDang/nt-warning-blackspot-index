@@ -1,10 +1,30 @@
 // src/utils/wbiCalculator.ts
 
+import type {
+  CommunityFeature,
+  CoverageRing,
+  TowerSite,
+} from "../types";
 
 export interface BushfireRiskRecord {
-  COMMUNITY: string;
-  RATING: string;
-  [key: string]: any;
+  COMMUNITY?: string;
+  RATING?: string;
+  [key: string]: string | undefined;
+}
+
+/** Minimal shape of the raw coverage GeoJSON (MultiPolygon features). */
+interface CoverageGeoJSON {
+  features?: Array<{
+    geometry?: { coordinates?: number[][][][] };
+  }>;
+}
+
+/** Minimal shape of the raw ACMA towers GeoJSON (point features). */
+interface TowersGeoJSON {
+  features?: Array<{
+    geometry: { coordinates: number[] };
+    properties: Record<string, string | undefined>;
+  }>;
 }
 
 export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -31,14 +51,8 @@ export function pointInRing(x: number, y: number, ring: number[][]): boolean {
   return inside;
 }
 
-export function buildCoverageIndex(coverageGeoJSON: any): Array<{
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-  ring: number[][];
-}> {
-  const covRings = [];
+export function buildCoverageIndex(coverageGeoJSON: CoverageGeoJSON): CoverageRing[] {
+  const covRings: CoverageRing[] = [];
   if (!coverageGeoJSON?.features) return covRings;
 
   for (const feat of coverageGeoJSON.features) {
@@ -60,22 +74,16 @@ export function buildCoverageIndex(coverageGeoJSON: any): Array<{
   return covRings;
 }
 
-export function extractNTTowerSites(allTowersGeoJSON: any): Array<{
-  lat: number;
-  lon: number;
-  carriers: Set<string>;
-  has4G: boolean;
-  has5G: boolean;
-}> {
+export function extractNTTowerSites(allTowersGeoJSON: TowersGeoJSON): TowerSite[] {
   if (!allTowersGeoJSON?.features) return [];
 
-  const ntTowers = allTowersGeoJSON.features.filter((f: any) => {
+  const ntTowers = allTowersGeoJSON.features.filter((f) => {
     const [lon, lat] = f.geometry.coordinates;
     return lon >= 129 && lon <= 138 && lat >= -26 && lat <= -11;
   });
 
-  const towerSites: Array<{ lat: number; lon: number; carriers: Set<string>; has4G: boolean; has5G: boolean }> = [];
-  const siteMap = new Map<string, typeof towerSites[0]>();
+  const towerSites: TowerSite[] = [];
+  const siteMap = new Map<string, TowerSite>();
 
   for (const t of ntTowers) {
     const [lon, lat] = t.geometry.coordinates;
@@ -117,11 +125,11 @@ export function createBushfireRiskMap(csvRecords: BushfireRiskRecord[]): Map<str
 }
 
 export function computeCommunityWBI(
-  communityFeature: any,
-  towerSites: any[] = [],
-  covRings: any[] = [],
+  communityFeature: CommunityFeature,
+  towerSites: TowerSite[] = [],
+  covRings: CoverageRing[] = [],
   bushfireRiskMap?: Map<string, string>
-) {
+): CommunityFeature["properties"] {
   const props = { ...communityFeature.properties };
   const [lon, lat] = communityFeature.geometry.coordinates;
 
@@ -138,7 +146,7 @@ export function computeCommunityWBI(
 
   const nearbyCarriers = new Set<string>();
   let minDist = Infinity;
-  let nearestTowerSite: any = null;
+  let nearestTowerSite: TowerSite | null = null;
 
   for (const site of towerSites) {
     const dist = haversineKm(lat, lon, site.lat, site.lon);
@@ -174,7 +182,7 @@ export function computeCommunityWBI(
   }
 
   // Pillar 3: Infrastructure Proximity
-  let proximityScore = minDist > 100 ? 100 : minDist > 50 ? 80 : minDist > 35 ? 60 : minDist > 15 ? 40 : minDist > 5 ? 15 : 5;
+  const proximityScore = minDist > 100 ? 100 : minDist > 50 ? 80 : minDist > 35 ? 60 : minDist > 15 ? 40 : minDist > 5 ? 15 : 5;
 
   // Pillar 4: Digital Exclusion
   const ctype = props.community_type || props.COMMTYPE || "Family Outstation";
@@ -202,7 +210,7 @@ export function computeCommunityWBI(
     0.20 * digitalExclusion
   );
 
-  let tier: "Critical" | "High" | "Moderate" | "Low" =
+  const tier: "Critical" | "High" | "Moderate" | "Low" =
     wbi >= 75 ? "Critical" : wbi >= 60 ? "High" : wbi >= 40 ? "Moderate" : "Low";
 
   return {

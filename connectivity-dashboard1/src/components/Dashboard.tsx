@@ -1,9 +1,10 @@
 import { useMemo, useState, useEffect } from "react";
 import Plot from "react-plotly.js";
 import { ChartBarIcon, ArrowPathIcon, UsersIcon, MapPinIcon, ShieldExclamationIcon } from "@heroicons/react/24/outline";
+import type { CommunityFeature } from "../types";
 
 export default function Dashboard() {
-  const [communities, setCommunities] = useState<any[]>([]);
+  const [communities, setCommunities] = useState<CommunityFeature[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

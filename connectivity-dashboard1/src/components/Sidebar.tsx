@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import type { ReactElement } from "react";
 import {
   MapIcon,
@@ -10,8 +10,6 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function Sidebar() {
-  const navigate = useNavigate();
-
   return (
     <aside className="w-64 h-screen bg-slate-900 text-slate-300 flex flex-col justify-between flex-shrink-0 border-r border-slate-800 font-sans select-none z-20">
       

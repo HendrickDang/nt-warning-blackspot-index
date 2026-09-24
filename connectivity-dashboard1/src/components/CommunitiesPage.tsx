@@ -24,49 +24,7 @@ import {
   createBushfireRiskMap,
   computeCommunityWBI,
 } from "../utils/wbiCalculators";
-
-export interface CommunityFeature {
-  type: string;
-  properties: {
-    objectid: number;
-    community_id: number;
-    bushtel_url: string;
-    community_name: string;
-    community_aliases: string;
-    community_type: string;
-    main_language: string;
-    local_govt_council: string;
-    ward: string;
-    land_council: string;
-    electorate: string;
-    ntg_region: string;
-    population_source: string;
-    population_count: number | null;
-    longitude: number;
-    latitude: number;
-    RATING?: string;
-    // WBI Enriched Fields
-    wbi_score?: number;
-    wbi_tier?: "Critical" | "High" | "Moderate" | "Low";
-    hazard_risk?: "Extreme" | "High" | "Moderate" | "Low";
-    coverage_status?: string;
-    has_coverage?: boolean;
-    nearby_carriers?: number;
-    carrier_names?: string;
-    nearest_tower_km?: number;
-    nearest_tower_carriers?: string;
-    nearest_tower_4g?: boolean;
-    nearest_tower_5g?: boolean;
-    connectivity_gap_score?: number;
-    hazard_score?: number;
-    proximity_score?: number;
-    digital_exclusion_score?: number;
-  };
-  geometry: {
-    type: string;
-    coordinates: [number, number];
-  };
-}
+import type { CommunityFeature } from "../types";
 
 export default function CommunitiesPage() {
   const navigate = useNavigate();
@@ -110,8 +68,6 @@ export default function CommunitiesPage() {
 
   // Load and compute WBI pipeline client-side
   useEffect(() => {
-    setLoading(true);
-
     async function loadDataAndComputeWBI() {
       try {
         const [commRes, covRes, towerRes, riskRes] = await Promise.all([
@@ -131,7 +87,7 @@ export default function CommunitiesPage() {
         if (riskRes.ok) {
           const csvText = await riskRes.text();
           const parsedRecords = parseCSV(csvText);
-          bushfireRiskMap = createBushfireRiskMap(parsedRecords as any);
+          bushfireRiskMap = createBushfireRiskMap(parsedRecords);
         }
 
         // Process spatial indexes if extra datasets exist
@@ -146,9 +102,9 @@ export default function CommunitiesPage() {
 
         setCommunities(enrichedFeatures);
         setLoading(false);
-      } catch (err: any) {
+      } catch (err) {
         console.error("Error running WBI pipeline:", err);
-        setError(err.message || "Failed to load communities pipeline");
+        setError(err instanceof Error ? err.message : "Failed to load communities pipeline");
         setLoading(false);
       }
     }
@@ -183,7 +139,7 @@ export default function CommunitiesPage() {
 
   // Filter & Sort computation
   const filteredCommunities = useMemo(() => {
-    let result = communities.filter((item) => {
+    const result = communities.filter((item) => {
       const p = item.properties;
 
       // Search
@@ -263,11 +219,6 @@ export default function CommunitiesPage() {
 
     return result;
   }, [communities, searchTerm, selectedRegion, selectedType, selectedCouncil, selectedTier, popFilter, sortBy]);
-
-  // Reset page to 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedRegion, selectedType, selectedCouncil, selectedTier, popFilter, sortBy]);
 
   // Pagination slice
   const totalPages = Math.ceil(filteredCommunities.length / pageSize) || 1;
@@ -415,7 +366,10 @@ export default function CommunitiesPage() {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Search name, alias, language, council..."
               className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
             />
@@ -432,7 +386,10 @@ export default function CommunitiesPage() {
           {/* WBI Tier Dropdown */}
           <select
             value={selectedTier}
-            onChange={(e) => setSelectedTier(e.target.value)}
+            onChange={(e) => {
+              setSelectedTier(e.target.value);
+              setCurrentPage(1);
+            }}
             className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
           >
             <option value="ALL">All WBI Tiers</option>
@@ -447,7 +404,10 @@ export default function CommunitiesPage() {
             <FunnelIcon className="h-4 w-4 text-slate-400 shrink-0" />
             <select
               value={selectedRegion}
-              onChange={(e) => setSelectedRegion(e.target.value)}
+              onChange={(e) => {
+                setSelectedRegion(e.target.value);
+                setCurrentPage(1);
+              }}
               className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="ALL">All Regions ({regions.length})</option>
@@ -462,7 +422,10 @@ export default function CommunitiesPage() {
           {/* Type Dropdown */}
           <select
             value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
+            onChange={(e) => {
+              setSelectedType(e.target.value);
+              setCurrentPage(1);
+            }}
             className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="ALL">All Types ({communityTypes.length})</option>
@@ -476,7 +439,10 @@ export default function CommunitiesPage() {
           {/* Council Dropdown */}
           <select
             value={selectedCouncil}
-            onChange={(e) => setSelectedCouncil(e.target.value)}
+            onChange={(e) => {
+              setSelectedCouncil(e.target.value);
+              setCurrentPage(1);
+            }}
             className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-[160px]"
           >
             <option value="ALL">All Councils</option>
@@ -490,7 +456,10 @@ export default function CommunitiesPage() {
           {/* Population Filter */}
           <select
             value={popFilter}
-            onChange={(e) => setPopFilter(e.target.value as any)}
+            onChange={(e) => {
+              setPopFilter(e.target.value as "ALL" | "RECORDED" | "GT50" | "GT100");
+              setCurrentPage(1);
+            }}
             className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="ALL">Population: Any</option>
@@ -504,7 +473,19 @@ export default function CommunitiesPage() {
             <span className="text-xs text-slate-400">Sort:</span>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => {
+                setSortBy(
+                  e.target.value as
+                    | "wbi-desc"
+                    | "wbi-asc"
+                    | "name-asc"
+                    | "name-desc"
+                    | "pop-desc"
+                    | "pop-asc"
+                    | "region"
+                );
+                setCurrentPage(1);
+              }}
               className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
             >
               <option value="wbi-desc">WBI Risk (High &rarr; Low)</option>
@@ -544,6 +525,7 @@ export default function CommunitiesPage() {
                 setSelectedCouncil("ALL");
                 setSelectedTier("ALL");
                 setPopFilter("ALL");
+                setCurrentPage(1);
               }}
               className="mt-4 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition"
             >

@@ -82,6 +82,12 @@ export default function HelpPage() {
               Custodians: ACMA / Carrier Data. Contains cell tower coordinates and cellular coverage contours.
             </div>
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+              <strong className="text-slate-800 block">NAFI / FireNorth — Active Fire Hotspots & Burnt Areas (WMS)</strong>
+              Custodians: Darwin Centre for Bushfire Research (CDU) / Bushfires NT. Live satellite thermal hotspot
+              detections and current-month burnt-area mapping for northern Australia, streamed from the FireNorth Web
+              Map Service (<code>firenorth.org.au</code>).
+            </div>
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
               <strong className="text-slate-800 block">Northern Territory Administrative Boundary</strong>
               Custodian: NT Land Information System (LIS). Official geospatial boundary polygon of the Northern Territory.
             </div>
@@ -96,6 +102,7 @@ export default function HelpPage() {
           </h2>
           <ul className="list-disc list-inside mt-2 space-y-1 text-xs text-slate-600 leading-relaxed">
             <li><strong>Live Map:</strong> Toggle mobile coverage contours, remote community markers, and regional boundaries. Click any marker to view its WBI score and hazard breakdown.</li>
+            <li><strong>Bushfire (Live):</strong> Overlay live satellite fire hotspots detected in the last 24 hours and current-month burnt areas from the NAFI / FireNorth service to see active bushfire activity against community risk.</li>
             <li><strong>Communities Directory:</strong> Search and filter through communities by region, type, council, population, or WBI risk tier. Click any entry to fly directly to it on the map.</li>
             <li><strong>Analytics:</strong> Review regional vulnerability trends, blackspot counts, and population exposure metrics across Northern Territory regions.</li>
           </ul>

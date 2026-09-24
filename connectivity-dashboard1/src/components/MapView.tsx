@@ -2,29 +2,36 @@ import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import L, { Map as LeafletMap, GeoJSON, TileLayer } from "leaflet";
 import "leaflet/dist/leaflet.css";
+import type { LayerState } from "../types";
+import {
+  NAFI_WMS_URL,
+  NAFI_ATTRIBUTION,
+  ACTIVE_FIRE_LAYERS,
+  BURNT_AREAS_LAYER,
+} from "../bushfire";
 
 interface Props {
-  layers: {
-    towers: boolean;
-    communities: boolean;
-    coverage: boolean;
-    activeNodes: boolean;
-    offlineNodes: boolean;
-    communityHubs: boolean;
-    nodeDensity: boolean;
-    signalStrength: boolean;
-    baseMap: boolean;
-    ntBoundary: boolean;
-  };
+  layers: LayerState;
 }
 
 export default function MapView({ layers }: Props) {
   const mapRef = useRef<LeafletMap | null>(null);
   const baseMapRef = useRef<TileLayer | null>(null);
+  const activeFireRef = useRef<TileLayer | null>(null);
+  const burntAreasRef = useRef<TileLayer | null>(null);
   const [searchParams] = useSearchParams();
   
   // Cache fetched geoJSON layers so we don't re-fetch on every toggle
   const geoCache = useRef<Record<string, GeoJSON>>({});
+
+  // De-duplicate in-flight fetches. Without this, concurrent syncs (e.g. React
+  // StrictMode double-invoking effects) create two copies of the same layer and
+  // the cache ends up pointing at the one that is not on the map.
+  const geoLoading = useRef<Record<string, Promise<GeoJSON | null>>>({});
+
+  // Always-fresh copy of the layers prop for async callbacks, so they read the
+  // latest toggle state instead of the value captured when the fetch started.
+  const layersRef = useRef(layers);
 
   // 1. INITIALIZE MAP (Runs once on mount)
   useEffect(() => {
@@ -46,11 +53,40 @@ export default function MapView({ layers }: Props) {
     map.createPane("communitiesPane");
     map.getPane("communitiesPane")!.style.zIndex = "700";
 
+    // Bushfire overlays sit above coverage fills but below node/community markers
+    map.createPane("bushfirePane");
+    map.getPane("bushfirePane")!.style.zIndex = "550";
+
     // Initialize Base Map Layer (but don't add it yet, let the sync effect handle it)
     baseMapRef.current = L.tileLayer(
       "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
       { maxZoom: 12 }
     );
+
+    // Live active-fire hotspots (last 24h) from the NAFI WMS
+    activeFireRef.current = L.tileLayer.wms(NAFI_WMS_URL, {
+      layers: ACTIVE_FIRE_LAYERS,
+      format: "image/png",
+      transparent: true,
+      version: "1.1.1",
+      crs: L.CRS.EPSG4326,
+      pane: "bushfirePane",
+      maxZoom: 12,
+      attribution: NAFI_ATTRIBUTION,
+    });
+
+    // Burnt areas for the current calendar year, colour-coded by month.
+    // The service already applies ~51% opacity, so no extra layer opacity here.
+    burntAreasRef.current = L.tileLayer.wms(NAFI_WMS_URL, {
+      layers: BURNT_AREAS_LAYER,
+      format: "image/png",
+      transparent: true,
+      version: "1.1.1",
+      crs: L.CRS.EPSG4326,
+      pane: "bushfirePane",
+      maxZoom: 12,
+      attribution: NAFI_ATTRIBUTION,
+    });
 
     // Cleanup on unmount
     return () => {
@@ -86,32 +122,58 @@ export default function MapView({ layers }: Props) {
 
   // 2. SYNC LAYERS (Runs when 'layers' prop changes)
   useEffect(() => {
+    // Keep the async callbacks below reading the latest toggle state.
+    layersRef.current = layers;
+
     const map = mapRef.current;
     if (!map) return;
 
-    // --- Base Map Toggle ---
-    if (layers.baseMap && baseMapRef.current && !map.hasLayer(baseMapRef.current)) {
-      baseMapRef.current.addTo(map);
-    } else if (!layers.baseMap && baseMapRef.current && map.hasLayer(baseMapRef.current)) {
-      map.removeLayer(baseMapRef.current);
-    }
+    // --- Helper to add/remove a cached tile layer based on its toggle ---
+    const syncTileLayer = (layer: TileLayer | null, isActive: boolean) => {
+      if (!layer) return;
+      if (isActive && !map.hasLayer(layer)) {
+        layer.addTo(map);
+      } else if (!isActive && map.hasLayer(layer)) {
+        map.removeLayer(layer);
+      }
+    };
+
+    // --- Base Map + Bushfire Overlay Toggles ---
+    syncTileLayer(baseMapRef.current, layers.baseMap);
+    syncTileLayer(activeFireRef.current, layers.activeBushfires);
+    syncTileLayer(burntAreasRef.current, layers.burntAreas);
 
     // --- Helper function to manage GeoJSON layers efficiently ---
     const syncGeoJsonLayer = async (
-      layerKey: keyof Props["layers"],
+      layerKey: keyof LayerState,
       url: string,
       options: L.GeoJSONOptions
     ) => {
-      const isActive = layers[layerKey];
+      // Resolve the map and toggle state when the async work finishes: the map
+      // is recreated under StrictMode/remounts and toggles can change mid-fetch.
+      const currentMap = () => mapRef.current;
+      const isActive = () => layersRef.current[layerKey];
       const cachedLayer = geoCache.current[layerKey];
 
-      if (isActive) {
-        // If it's cached, just add it back to the map
-        if (cachedLayer && !map.hasLayer(cachedLayer)) {
-          cachedLayer.addTo(map);
-        } 
-        // If not cached, fetch it once and save it
-        else if (!cachedLayer) {
+      // Cached: just show/hide it.
+      if (cachedLayer) {
+        const m = currentMap();
+        if (!m) return;
+        if (isActive() && !m.hasLayer(cachedLayer)) {
+          cachedLayer.addTo(m);
+        } else if (!isActive() && m.hasLayer(cachedLayer)) {
+          m.removeLayer(cachedLayer);
+        }
+        return;
+      }
+
+      // Nothing cached and the layer is off: nothing to do.
+      if (!isActive()) return;
+
+      // Fetch once, even if several syncs run before the fetch resolves.
+      let pending = geoLoading.current[layerKey];
+      if (!pending) {
+        pending = (async () => {
           try {
             let response = await fetch(url);
             if (!response.ok) {
@@ -120,25 +182,30 @@ export default function MapView({ layers }: Props) {
               response = await fetch(fallbackUrl);
             }
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            
-            const data = await response.json();
-            const newLayer = L.geoJSON(data, options);
-            
-            geoCache.current[layerKey] = newLayer;
 
-            // Check if the layer wasn't toggled off while fetching
-            if (layers[layerKey]) {
-              newLayer.addTo(map);
-            }
+            const data = await response.json();
+            return L.geoJSON(data, options);
           } catch (error) {
             console.error(`Failed to load layer: ${layerKey}`, error);
+            return null;
+          } finally {
+            delete geoLoading.current[layerKey];
           }
-        }
-      } else {
-        // If layer is toggled off, remove it from the map view
-        if (cachedLayer && map.hasLayer(cachedLayer)) {
-          map.removeLayer(cachedLayer);
-        }
+        })();
+        geoLoading.current[layerKey] = pending;
+      }
+
+      const newLayer = await pending;
+      if (!newLayer) return;
+
+      // A concurrent sync may have cached the layer while we awaited.
+      if (geoCache.current[layerKey]) return;
+      geoCache.current[layerKey] = newLayer;
+
+      // Only add it if it is still enabled and the map is still alive.
+      const m = currentMap();
+      if (m && isActive()) {
+        newLayer.addTo(m);
       }
     };
 
