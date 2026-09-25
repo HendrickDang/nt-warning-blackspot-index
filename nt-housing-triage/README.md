@@ -31,10 +31,13 @@ from the same scores the coordinator sees.
 
 - **Next.js (App Router) + Tailwind CSS** — single `npm run dev`, minimal deps.
 - **Deterministic engine** in TypeScript — never a black box.
-- **Fine-tuned parser** — Qwen2.5-3B-Instruct via local **Ollama**, with a
+- **Fine-tuned parser** — Gemma 4 E2B via local **Ollama** (Q4_K_M GGUF), with a
   deterministic keyword fallback so the app works fully offline with no model.
 - **Grounded explainer** — every sentence is built from numbers already in the
   engine, so a fairness explanation can never hallucinate a figure.
+- **SQLite persistence** — reports, committed schedules and the audit trail live
+  in a local file (`data/nt-triage.sqlite`) via Node's built-in `node:sqlite`.
+  No server, no cloud — consistent with the offline, on-country promise.
 
 ## Run it
 
@@ -53,6 +56,7 @@ Other commands:
 npm test                 # engine, parser (golden set) and generator tests
 npm run build            # production build
 npm run data:generate    # regenerate data/distance-matrix.json
+npm run db:reset         # wipe the local SQLite db (reseeds on next run)
 npm run training:generate -- 3000   # build the fine-tune dataset
 ```
 
@@ -70,9 +74,10 @@ nt-housing-triage/
 │   ├── engine/              # need score, batching, efficiency, equity ranking
 │   ├── parser/              # LLM-first parser + deterministic fallback
 │   ├── explainer/           # deterministic, grounded explanations
+│   ├── db/                  # SQLite schema + repository (reports, schedules, audit)
 │   ├── data/                # communities, distances, generator, seed
 │   └── ui/                  # shared UI colour tokens
-├── data/                    # communities.json, trade-bases.json, distance matrix
+├── data/                    # communities.json, distance matrix, nt-triage.sqlite
 ├── scripts/                 # data artifact generation
 ├── training/                # dataset generation + fine-tune recipe
 └── tests/                   # engine, parser golden set, generator
@@ -88,6 +93,23 @@ nt-housing-triage/
 - **Reports**: synthetic, generated from the shared taxonomy so the demo scenario
   stages reproducibly. The same generator produces the fine-tune dataset.
 
+## Persistence (SQLite)
+
+Everything that must survive a reload lives in `data/nt-triage.sqlite`
+(gitignored, created on first run). `npm run db:reset` wipes it; the demo queue
+reseeds itself on the next run using the deterministic parser.
+
+| table | holds |
+|---|---|
+| `reports` | report text, parsed fields, and the engine's need / efficiency / equity-gap ranks |
+| `schedules` | a committed schedule at a given equity dial (λ) plus its grounded narrative |
+| `schedule_jobs` | the ordered jobs in a schedule, each with a rationale |
+| `audit_log` | append-only record of commits and escalations (who, what, why) |
+
+The audit trail is the durable half of the trust twist: a commit (`POST /api/commit`)
+and a tenant's escalation (`POST /api/escalate`) are both written down — so the
+"why" a tenant is given is the same record the coordinator signed off on.
+
 ## Demo scenario
 
 1. Darwin tap leak and an Alice Springs aircon fault sort to the top on efficiency.
@@ -96,3 +118,4 @@ nt-housing-triage/
 3. Turn on batching → Wadeye groups with the two other West Daly jobs and recovers
    places at almost no extra travel cost.
 4. Read the tenant's answer aloud — it is honest about the trade-off.
+5. Commit the schedule and record an escalation — both land in `audit_log`.

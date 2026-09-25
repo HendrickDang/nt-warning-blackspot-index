@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { rankJobs } from "@/lib/engine/rank";
 import type { Job } from "@/lib/engine/types";
 import { tenantAnswer, formatVisitDate } from "@/lib/explainer";
@@ -27,6 +27,38 @@ export default function TenantView({ jobs, initialJobId }: Props) {
     lambda,
     total: result.ranked.length,
   });
+
+  const [escalating, setEscalating] = useState(false);
+  const [escalated, setEscalated] = useState(false);
+  const [escalationError, setEscalationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEscalated(false);
+    setEscalationError(null);
+  }, [ranked.job.id]);
+
+  async function escalate() {
+    if (escalating) return;
+    setEscalating(true);
+    setEscalationError(null);
+    try {
+      const res = await fetch("/api/escalate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          reportId: ranked.job.id,
+          actor: "tenant",
+          reason: `Tenant escalated ${ranked.job.id} (${ranked.job.community.name}).`,
+        }),
+      });
+      if (!res.ok) throw new Error(`Escalation failed (${res.status})`);
+      setEscalated(true);
+    } catch (e) {
+      setEscalationError((e as Error).message);
+    } finally {
+      setEscalating(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-6">
@@ -82,7 +114,17 @@ export default function TenantView({ jobs, initialJobId }: Props) {
         </div>
 
         <div className="mt-5 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-100">
-          {answer.escalation}
+          <p>{answer.escalation}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <button
+              onClick={escalate}
+              disabled={escalating || escalated}
+              className="rounded-lg border border-amber-400/40 px-3 py-1.5 font-medium text-amber-100 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {escalated ? "Escalation recorded" : escalating ? "Recording…" : "Record escalation"}
+            </button>
+            {escalationError && <span className="text-rose-300">{escalationError}</span>}
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-[11px] sm:grid-cols-4">

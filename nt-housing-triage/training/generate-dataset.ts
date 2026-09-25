@@ -3,9 +3,9 @@
  *
  *   npm run training:generate -- 3000
  *
- * Emits chat-format JSONL for Qwen2.5-3B-Instruct fine-tuning, with a held-out
- * eval split. The assistant target is exactly the taxonomy §1 schema, so the
- * model learns the same contract the deterministic fallback parser implements.
+ * Emits chat-format JSONL for Gemma 4 E4B fine-tuning (unsloth + QLoRA), with a
+ * held-out eval split. The assistant target is exactly the taxonomy §1 schema, so
+ * the model learns the same contract the deterministic fallback parser implements.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

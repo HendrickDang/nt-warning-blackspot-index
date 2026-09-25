@@ -15,7 +15,7 @@ import { matchCommunity } from "@/lib/data/communities";
 import type { ParseResult } from "./types";
 
 /**
- * Local Ollama client for the fine-tuned Qwen2.5-3B parser.
+ * Local Ollama client for the fine-tuned Gemma 4 E4B parser.
  *
  * Everything here is best-effort: if Ollama is not running, or returns
  * something off-schema, the caller falls back to the deterministic parser.

@@ -20,18 +20,20 @@ export default function ReportForm({ onAdd }: Props) {
     setBusy(true);
     setError(null);
     setResult(null);
+    // Generated up front so the client job id matches the row the server persists.
+    const id = `JOB-${Math.floor(Math.random() * 9000) + 1000}`;
     try {
       const res = await fetch("/api/parse", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, id }),
       });
       if (!res.ok) throw new Error(`Parse failed (${res.status})`);
       const parsed = (await res.json()) as ParseResult;
       setResult(parsed);
 
       const { job, error: buildError } = buildJob({
-        id: `JOB-${Math.floor(Math.random() * 9000) + 1000}`,
+        id,
         rawText: text.trim(),
         reportedAt: new Date().toISOString(),
         household: parsed.community ? `${parsed.community} (new)` : "new report",
