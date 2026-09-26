@@ -23,7 +23,7 @@ interface CoverageGeoJSON {
 interface TowersGeoJSON {
   features?: Array<{
     geometry: { coordinates: number[] };
-    properties: Record<string, string | undefined>;
+    properties: Record<string, string | number | boolean | null | undefined>;
   }>;
 }
 
@@ -51,11 +51,12 @@ export function pointInRing(x: number, y: number, ring: number[][]): boolean {
   return inside;
 }
 
-export function buildCoverageIndex(coverageGeoJSON: CoverageGeoJSON): CoverageRing[] {
+export function buildCoverageIndex(coverageGeoJSON: unknown): CoverageRing[] {
   const covRings: CoverageRing[] = [];
-  if (!coverageGeoJSON?.features) return covRings;
+  const features = (coverageGeoJSON as CoverageGeoJSON | null)?.features;
+  if (!features) return covRings;
 
-  for (const feat of coverageGeoJSON.features) {
+  for (const feat of features) {
     if (!feat.geometry?.coordinates) continue;
     for (const poly of feat.geometry.coordinates) {
       for (const ring of poly) {
@@ -74,10 +75,11 @@ export function buildCoverageIndex(coverageGeoJSON: CoverageGeoJSON): CoverageRi
   return covRings;
 }
 
-export function extractNTTowerSites(allTowersGeoJSON: TowersGeoJSON): TowerSite[] {
-  if (!allTowersGeoJSON?.features) return [];
+export function extractNTTowerSites(allTowersGeoJSON: unknown): TowerSite[] {
+  const features = (allTowersGeoJSON as TowersGeoJSON | null)?.features;
+  if (!features) return [];
 
-  const ntTowers = allTowersGeoJSON.features.filter((f) => {
+  const ntTowers = features.filter((f) => {
     const [lon, lat] = f.geometry.coordinates;
     return lon >= 129 && lon <= 138 && lat >= -26 && lat <= -11;
   });
@@ -88,23 +90,27 @@ export function extractNTTowerSites(allTowersGeoJSON: TowersGeoJSON): TowerSite[
   for (const t of ntTowers) {
     const [lon, lat] = t.geometry.coordinates;
     const key = `${lat.toFixed(4)}_${lon.toFixed(4)}`;
-    const carrier = t.properties["MNO/Optus-TPG MOCN"] || "Unknown";
+    const carrier = String(
+      t.properties["carrier"] ?? t.properties["MNO/Optus-TPG MOCN"] ?? "Unknown"
+    );
+    const has4G = t.properties["has4G"] === true || t.properties["4G"] === "Y";
+    const has5G = t.properties["has5G"] === true || t.properties["5G"] === "Y";
 
     if (!siteMap.has(key)) {
       const site = {
         lat,
         lon,
         carriers: new Set([carrier]),
-        has4G: t.properties["4G"] === "Y",
-        has5G: t.properties["5G"] === "Y",
+        has4G,
+        has5G,
       };
       siteMap.set(key, site);
       towerSites.push(site);
     } else {
       const site = siteMap.get(key)!;
       site.carriers.add(carrier);
-      if (t.properties["4G"] === "Y") site.has4G = true;
-      if (t.properties["5G"] === "Y") site.has5G = true;
+      if (has4G) site.has4G = true;
+      if (has5G) site.has5G = true;
     }
   }
 

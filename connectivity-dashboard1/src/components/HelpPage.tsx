@@ -101,10 +101,10 @@ export default function HelpPage() {
             How to Use the Platform
           </h2>
           <ul className="list-disc list-inside mt-2 space-y-1 text-xs text-slate-600 leading-relaxed">
-            <li><strong>Live Map:</strong> Toggle mobile coverage contours, remote community markers, and regional boundaries. Click any marker to view its WBI score and hazard breakdown.</li>
+            <li><strong>Live Map:</strong> Toggle mobile coverage contours, remote community markers, cell towers, and the NT boundary. Community markers are coloured by WBI tier — click any marker to view its score, pillar breakdown and hazard context.</li>
             <li><strong>Bushfire (Live):</strong> Overlay live satellite fire hotspots detected in the last 24 hours and current-month burnt areas from the NAFI / FireNorth service to see active bushfire activity against community risk.</li>
-            <li><strong>Communities Directory:</strong> Search and filter through communities by region, type, council, population, or WBI risk tier. Click any entry to fly directly to it on the map.</li>
-            <li><strong>Analytics:</strong> Review regional vulnerability trends, blackspot counts, and population exposure metrics across Northern Territory regions.</li>
+            <li><strong>Communities Directory:</strong> Search and filter through communities by region, type, council, population, or WBI risk tier. Filters are reflected in the URL, so any view can be shared or bookmarked. Click any entry for its full breakdown or to fly directly to it on the map.</li>
+            <li><strong>Analytics:</strong> Review regional vulnerability trends, the WBI distribution, risk-tier counts, and the highest-risk communities across the Northern Territory.</li>
           </ul>
         </div>
       </div>

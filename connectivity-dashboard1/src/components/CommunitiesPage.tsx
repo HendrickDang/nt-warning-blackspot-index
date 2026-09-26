@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   MagnifyingGlassIcon,
   MapPinIcon,
@@ -16,278 +16,272 @@ import {
   ExclamationTriangleIcon,
   SignalIcon,
 } from "@heroicons/react/24/outline";
-
-// Import the updated WBI calculation utilities
-import {
-  buildCoverageIndex,
-  extractNTTowerSites,
-  createBushfireRiskMap,
-  computeCommunityWBI,
-} from "../utils/wbiCalculators";
 import type { CommunityFeature } from "../types";
+import { useData } from "../context/dataContext";
+import { getWbiTierStyle } from "../utils/wbi";
+import { safeUrl } from "../utils/html";
+
+type SortKey =
+  | "wbi-desc"
+  | "wbi-asc"
+  | "name-asc"
+  | "name-desc"
+  | "pop-desc"
+  | "pop-asc"
+  | "region";
+
+type PopFilter = "ALL" | "RECORDED" | "GT50" | "GT100";
+
+const PAGE_SIZE = 20;
+
+const SORT_KEYS: SortKey[] = [
+  "wbi-desc",
+  "wbi-asc",
+  "name-asc",
+  "name-desc",
+  "pop-desc",
+  "pop-asc",
+  "region",
+];
+const POP_FILTERS: PopFilter[] = ["ALL", "RECORDED", "GT50", "GT100"];
+
+function getTypeBadgeClass(type: string) {
+  switch (type) {
+    case "Major":
+      return "bg-purple-100 text-purple-800 border-purple-200";
+    case "Town":
+    case "City":
+      return "bg-blue-100 text-blue-800 border-blue-200";
+    case "Village":
+      return "bg-emerald-100 text-emerald-800 border-emerald-200";
+    case "Town Camp":
+      return "bg-amber-100 text-amber-800 border-amber-200";
+    case "Family Outstation":
+      return "bg-slate-100 text-slate-700 border-slate-200";
+    default:
+      return "bg-gray-100 text-gray-700 border-gray-200";
+  }
+}
+
+function getRegionBadgeClass(region: string) {
+  switch (region) {
+    case "CENTRAL AUSTRALIA":
+      return "bg-red-50 text-red-700 border-red-200";
+    case "TOP END":
+      return "bg-cyan-50 text-cyan-700 border-cyan-200";
+    case "EAST ARNHEM":
+      return "bg-teal-50 text-teal-700 border-teal-200";
+    case "BIG RIVERS":
+      return "bg-indigo-50 text-indigo-700 border-indigo-200";
+    case "BARKLY":
+      return "bg-amber-50 text-amber-700 border-amber-200";
+    default:
+      return "bg-gray-50 text-gray-600 border-gray-200";
+  }
+}
 
 export default function CommunitiesPage() {
   const navigate = useNavigate();
-  const [communities, setCommunities] = useState<CommunityFeature[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { wbiCommunities, wbiStatus, wbiError, status, error, ensureWbi } = useData();
 
-  // Filters & Controls
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedRegion, setSelectedRegion] = useState("ALL");
-  const [selectedType, setSelectedType] = useState("ALL");
-  const [selectedCouncil, setSelectedCouncil] = useState("ALL");
-  const [selectedTier, setSelectedTier] = useState("ALL");
-  const [popFilter, setPopFilter] = useState<"ALL" | "RECORDED" | "GT50" | "GT100">("ALL");
-  const [sortBy, setSortBy] = useState<
-    "wbi-desc" | "wbi-asc" | "name-asc" | "name-desc" | "pop-desc" | "pop-asc" | "region"
-  >("wbi-desc");
-  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
-
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 20;
-
-  // Selected for detail modal
-  const [selectedCommunity, setSelectedCommunity] = useState<CommunityFeature | null>(null);
-
-  // Helper to parse simple CSV text into objects
-  const parseCSV = (csvText: string) => {
-    const lines = csvText.split("\n").filter((l) => l.trim().length > 0);
-    if (lines.length < 2) return [];
-    const headers = lines[0].split(",").map((h) => h.trim());
-    return lines.slice(1).map((line) => {
-      const values = line.split(",").map((v) => v.trim());
-      const row: Record<string, string> = {};
-      headers.forEach((h, idx) => {
-        row[h] = values[idx] || "";
-      });
-      return row;
-    });
-  };
-
-  // Load and compute WBI pipeline client-side
   useEffect(() => {
-    async function loadDataAndComputeWBI() {
-      try {
-        const [commRes, covRes, towerRes, riskRes] = await Promise.all([
-          fetch("/data/communities.geojson").catch(() => fetch("src/data/communities.geojson")),
-          fetch("/data/coverage.geojson").catch(() => fetch("src/data/coverage.geojson")),
-          fetch("/data/towers.geojson").catch(() => fetch("src/data/towers.geojson")),
-          fetch("/data/Community_Bushfire_Risk.csv").catch(() => fetch("src/data/Community_Bushfire_Risk.csv")),
-        ]);
+    ensureWbi();
+  }, [ensureWbi]);
 
-        if (!commRes.ok) throw new Error("Failed to load communities dataset");
+  const communities = useMemo(() => wbiCommunities ?? [], [wbiCommunities]);
+  const loading = status === "loading" || wbiStatus === "loading" || wbiStatus === "idle";
+  const failure = status === "error" ? error : wbiStatus === "error" ? wbiError : null;
 
-        const commData = await commRes.json();
-        const covData = covRes.ok ? await covRes.json() : null;
-        const towerData = towerRes.ok ? await towerRes.json() : null;
+  // --- URL-backed controls -------------------------------------------------
+  const searchTerm = searchParams.get("q") ?? "";
+  const selectedRegion = searchParams.get("region") ?? "ALL";
+  const selectedType = searchParams.get("type") ?? "ALL";
+  const selectedCouncil = searchParams.get("council") ?? "ALL";
+  const selectedTier = searchParams.get("tier") ?? "ALL";
+  const popFilterRaw = searchParams.get("pop") ?? "ALL";
+  const popFilter: PopFilter = POP_FILTERS.includes(popFilterRaw as PopFilter)
+    ? (popFilterRaw as PopFilter)
+    : "ALL";
+  const sortRaw = searchParams.get("sort") ?? "";
+  const sortBy: SortKey = SORT_KEYS.includes(sortRaw as SortKey)
+    ? (sortRaw as SortKey)
+    : "wbi-desc";
+  const viewMode = searchParams.get("view") === "grid" ? "grid" : "table";
+  const pageRaw = Number.parseInt(searchParams.get("page") ?? "1", 10);
+  const currentPage = Number.isNaN(pageRaw) || pageRaw < 1 ? 1 : pageRaw;
 
-        let bushfireRiskMap: Map<string, string> | undefined;
-        if (riskRes.ok) {
-          const csvText = await riskRes.text();
-          const parsedRecords = parseCSV(csvText);
-          bushfireRiskMap = createBushfireRiskMap(parsedRecords);
-        }
+  const updateParams = useCallback(
+    (patch: Record<string, string | null>, resetPage = true) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          for (const [key, value] of Object.entries(patch)) {
+            if (value === null || value === "" || value === "ALL") next.delete(key);
+            else next.set(key, value);
+          }
+          if (resetPage) next.delete("page");
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
 
-        // Process spatial indexes if extra datasets exist
-        const covRings = covData ? buildCoverageIndex(covData) : [];
-        const towerSites = towerData ? extractNTTowerSites(towerData) : [];
-
-        // Enrich communities with WBI scores using CSV risk ratings
-        const enrichedFeatures = commData.features.map((feature: CommunityFeature) => ({
-          ...feature,
-          properties: computeCommunityWBI(feature, towerSites, covRings, bushfireRiskMap),
-        }));
-
-        setCommunities(enrichedFeatures);
-        setLoading(false);
-      } catch (err) {
-        console.error("Error running WBI pipeline:", err);
-        setError(err instanceof Error ? err.message : "Failed to load communities pipeline");
-        setLoading(false);
-      }
-    }
-
-    loadDataAndComputeWBI();
-  }, []);
+  const resetFilters = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        ["q", "region", "type", "council", "tier", "pop", "sort", "page", "view"].forEach((k) =>
+          next.delete(k)
+        );
+        return next;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
 
   // Filter options derived from data
-  const regions = useMemo(() => {
-    const set = new Set<string>();
-    communities.forEach((c) => {
-      if (c.properties.ntg_region) set.add(c.properties.ntg_region);
-    });
-    return Array.from(set).sort();
-  }, [communities]);
+  const regions = useMemo(
+    () => uniqueSorted(communities.map((c) => c.properties.ntg_region)),
+    [communities]
+  );
+  const communityTypes = useMemo(
+    () => uniqueSorted(communities.map((c) => c.properties.community_type)),
+    [communities]
+  );
+  const councils = useMemo(
+    () => uniqueSorted(communities.map((c) => c.properties.local_govt_council)),
+    [communities]
+  );
 
-  const communityTypes = useMemo(() => {
-    const set = new Set<string>();
-    communities.forEach((c) => {
-      if (c.properties.community_type) set.add(c.properties.community_type);
-    });
-    return Array.from(set).sort();
-  }, [communities]);
-
-  const councils = useMemo(() => {
-    const set = new Set<string>();
-    communities.forEach((c) => {
-      if (c.properties.local_govt_council) set.add(c.properties.local_govt_council);
-    });
-    return Array.from(set).sort();
-  }, [communities]);
-
-  // Filter & Sort computation
   const filteredCommunities = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
     const result = communities.filter((item) => {
       const p = item.properties;
 
-      // Search
-      if (searchTerm.trim()) {
-        const query = searchTerm.toLowerCase();
-        const matchesName = p.community_name?.toLowerCase().includes(query);
-        const matchesAlias = p.community_aliases?.toLowerCase().includes(query);
-        const matchesLang = p.main_language?.toLowerCase().includes(query);
-        const matchesCouncil = p.local_govt_council?.toLowerCase().includes(query);
-        if (!matchesName && !matchesAlias && !matchesLang && !matchesCouncil) {
-          return false;
-        }
+      if (query) {
+        const matches =
+          p.community_name?.toLowerCase().includes(query) ||
+          p.community_aliases?.toLowerCase().includes(query) ||
+          p.main_language?.toLowerCase().includes(query) ||
+          p.local_govt_council?.toLowerCase().includes(query);
+        if (!matches) return false;
       }
-
-      // Region
-      if (selectedRegion !== "ALL" && p.ntg_region !== selectedRegion) {
-        return false;
-      }
-
-      // Type
-      if (selectedType !== "ALL" && p.community_type !== selectedType) {
-        return false;
-      }
-
-      // Council
-      if (selectedCouncil !== "ALL" && p.local_govt_council !== selectedCouncil) {
-        return false;
-      }
-
-      // WBI Tier Filter
-      if (selectedTier !== "ALL" && p.wbi_tier !== selectedTier) {
-        return false;
-      }
-
-      // Population Filter
-      if (popFilter === "RECORDED" && (p.population_count === null || p.population_count === undefined)) {
-        return false;
-      }
-      if (popFilter === "GT50" && (p.population_count === null || p.population_count < 50)) {
-        return false;
-      }
-      if (popFilter === "GT100" && (p.population_count === null || p.population_count < 100)) {
-        return false;
-      }
-
+      if (selectedRegion !== "ALL" && p.ntg_region !== selectedRegion) return false;
+      if (selectedType !== "ALL" && p.community_type !== selectedType) return false;
+      if (selectedCouncil !== "ALL" && p.local_govt_council !== selectedCouncil) return false;
+      if (selectedTier !== "ALL" && p.wbi_tier !== selectedTier) return false;
+      if (popFilter === "RECORDED" && (p.population_count ?? null) === null) return false;
+      if (popFilter === "GT50" && (p.population_count ?? 0) < 50) return false;
+      if (popFilter === "GT100" && (p.population_count ?? 0) < 100) return false;
       return true;
     });
 
-    // Sort
     result.sort((a, b) => {
       const pa = a.properties;
       const pb = b.properties;
-
-      if (sortBy === "wbi-desc") {
-        return (pb.wbi_score || 0) - (pa.wbi_score || 0);
+      switch (sortBy) {
+        case "wbi-desc":
+          return (pb.wbi_score || 0) - (pa.wbi_score || 0);
+        case "wbi-asc":
+          return (pa.wbi_score || 0) - (pb.wbi_score || 0);
+        case "name-asc":
+          return (pa.community_name || "").localeCompare(pb.community_name || "");
+        case "name-desc":
+          return (pb.community_name || "").localeCompare(pa.community_name || "");
+        case "pop-desc":
+          return (pb.population_count || 0) - (pa.population_count || 0);
+        case "pop-asc":
+          return (pa.population_count || 0) - (pb.population_count || 0);
+        case "region":
+          return (pa.ntg_region || "").localeCompare(pb.ntg_region || "");
+        default:
+          return 0;
       }
-      if (sortBy === "wbi-asc") {
-        return (pa.wbi_score || 0) - (pb.wbi_score || 0);
-      }
-      if (sortBy === "name-asc") {
-        return (pa.community_name || "").localeCompare(pb.community_name || "");
-      }
-      if (sortBy === "name-desc") {
-        return (pb.community_name || "").localeCompare(pa.community_name || "");
-      }
-      if (sortBy === "pop-desc") {
-        return (pb.population_count || 0) - (pa.population_count || 0);
-      }
-      if (sortBy === "pop-asc") {
-        return (pa.population_count || 0) - (pb.population_count || 0);
-      }
-      if (sortBy === "region") {
-        return (pa.ntg_region || "").localeCompare(pb.ntg_region || "");
-      }
-      return 0;
     });
 
     return result;
-  }, [communities, searchTerm, selectedRegion, selectedType, selectedCouncil, selectedTier, popFilter, sortBy]);
+  }, [
+    communities,
+    searchTerm,
+    selectedRegion,
+    selectedType,
+    selectedCouncil,
+    selectedTier,
+    popFilter,
+    sortBy,
+  ]);
 
-  // Pagination slice
-  const totalPages = Math.ceil(filteredCommunities.length / pageSize) || 1;
+  const totalPages = Math.ceil(filteredCommunities.length / PAGE_SIZE) || 1;
+  const safePage = Math.min(currentPage, totalPages);
   const paginatedCommunities = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredCommunities.slice(start, start + pageSize);
-  }, [filteredCommunities, currentPage, pageSize]);
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filteredCommunities.slice(start, start + PAGE_SIZE);
+  }, [filteredCommunities, safePage]);
 
-  // Summary Metrics
-  const totalPopulation = useMemo(() => {
-    return filteredCommunities.reduce((sum, c) => sum + (c.properties.population_count || 0), 0);
-  }, [filteredCommunities]);
+  const totalPopulation = useMemo(
+    () => filteredCommunities.reduce((sum, c) => sum + (c.properties.population_count || 0), 0),
+    [filteredCommunities]
+  );
+  const criticalCount = useMemo(
+    () => filteredCommunities.filter((c) => c.properties.wbi_tier === "Critical").length,
+    [filteredCommunities]
+  );
 
-  const criticalCount = useMemo(() => {
-    return filteredCommunities.filter((c) => c.properties.wbi_tier === "Critical").length;
-  }, [filteredCommunities]);
+  // --- Detail modal --------------------------------------------------------
+  const [selectedCommunity, setSelectedCommunity] = useState<CommunityFeature | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
-  const handleLocateOnMap = (community: CommunityFeature) => {
-    const { community_id, longitude, latitude, community_name } = community.properties;
-    navigate(`/map?commId=${community_id}&lat=${latitude}&lng=${longitude}&name=${encodeURIComponent(community_name)}`);
-  };
+  const handleLocateOnMap = useCallback(
+    (community: CommunityFeature) => {
+      const { community_id, longitude, latitude, community_name } = community.properties;
+      const params = new URLSearchParams({
+        commId: String(community_id),
+        lat: String(latitude),
+        lng: String(longitude),
+        name: community_name,
+      });
+      // Preserve the current map layer visibility when jumping to the map.
+      const layersParam = searchParams.get("layers");
+      if (layersParam !== null) params.set("layers", layersParam);
+      navigate(`/map?${params.toString()}`);
+    },
+    [navigate, searchParams]
+  );
 
-  const getWbiBadgeClass = (tier?: string) => {
-    switch (tier) {
-      case "Critical":
-        return "bg-red-100 text-red-800 border-red-300 font-bold";
-      case "High":
-        return "bg-orange-100 text-orange-800 border-orange-300 font-bold";
-      case "Moderate":
-        return "bg-yellow-100 text-yellow-800 border-yellow-300 font-semibold";
-      default:
-        return "bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold";
-    }
-  };
+  useEffect(() => {
+    if (!selectedCommunity) return;
 
-  const getTypeBadgeClass = (type: string) => {
-    switch (type) {
-      case "Major":
-        return "bg-purple-100 text-purple-800 border-purple-200";
-      case "Town":
-      case "City":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "Village":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200";
-      case "Town Camp":
-        return "bg-amber-100 text-amber-800 border-amber-200";
-      case "Family Outstation":
-        return "bg-slate-100 text-slate-700 border-slate-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedCommunity(null);
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
 
-  const getRegionBadgeClass = (region: string) => {
-    switch (region) {
-      case "CENTRAL AUSTRALIA":
-        return "bg-red-50 text-red-700 border-red-200";
-      case "TOP END":
-        return "bg-cyan-50 text-cyan-700 border-cyan-200";
-      case "EAST ARNHEM":
-        return "bg-teal-50 text-teal-700 border-teal-200";
-      case "BIG RIVERS":
-        return "bg-indigo-50 text-indigo-700 border-indigo-200";
-      case "BARKLY":
-        return "bg-amber-50 text-amber-700 border-amber-200";
-      default:
-        return "bg-gray-50 text-gray-600 border-gray-200";
-    }
-  };
+    document.addEventListener("keydown", onKeyDown);
+    const timer = window.setTimeout(() => dialogRef.current?.focus(), 0);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      window.clearTimeout(timer);
+    };
+  }, [selectedCommunity, setSelectedCommunity]);
 
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-hidden text-slate-800">
@@ -298,11 +292,11 @@ export default function CommunitiesPage() {
             <div className="flex items-center gap-2">
               <BuildingLibraryIcon className="h-6 w-6 text-indigo-600" />
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight my-0">
-                Northern Territory Communities & WBI Vulnerability Index
+                Northern Territory Communities &amp; WBI Vulnerability Index
               </h1>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Live multi-dimensional Warning Blackspot Index (WBI) calculated using CSV bushfire hazard ratings
+              Live multi-dimensional Warning Blackspot Index (WBI) using official bushfire hazard ratings
             </p>
           </div>
 
@@ -337,20 +331,24 @@ export default function CommunitiesPage() {
 
             <div className="flex items-center border border-slate-200 bg-slate-100 rounded-lg p-0.5">
               <button
-                onClick={() => setViewMode("table")}
+                type="button"
+                onClick={() => updateParams({ view: null }, false)}
+                aria-pressed={viewMode === "table"}
+                aria-label="Table view"
                 className={`p-1.5 rounded-md transition ${
                   viewMode === "table" ? "bg-white text-indigo-600 shadow-xs" : "text-slate-500 hover:text-slate-800"
                 }`}
-                title="Table View"
               >
                 <TableCellsIcon className="h-4 w-4" />
               </button>
               <button
-                onClick={() => setViewMode("grid")}
+                type="button"
+                onClick={() => updateParams({ view: "grid" }, false)}
+                aria-pressed={viewMode === "grid"}
+                aria-label="Card grid view"
                 className={`p-1.5 rounded-md transition ${
                   viewMode === "grid" ? "bg-white text-indigo-600 shadow-xs" : "text-slate-500 hover:text-slate-800"
                 }`}
-                title="Card Grid View"
               >
                 <Squares2X2Icon className="h-4 w-4" />
               </button>
@@ -360,22 +358,21 @@ export default function CommunitiesPage() {
 
         {/* Filter Bar */}
         <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-3">
-          {/* Search Box */}
           <div className="relative flex-1 min-w-[220px]">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => updateParams({ q: e.target.value })}
               placeholder="Search name, alias, language, council..."
+              aria-label="Search communities"
               className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
             />
             {searchTerm && (
               <button
-                onClick={() => setSearchTerm("")}
+                type="button"
+                onClick={() => updateParams({ q: null })}
+                aria-label="Clear search"
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
                 <XMarkIcon className="h-4 w-4" />
@@ -383,13 +380,10 @@ export default function CommunitiesPage() {
             )}
           </div>
 
-          {/* WBI Tier Dropdown */}
           <select
             value={selectedTier}
-            onChange={(e) => {
-              setSelectedTier(e.target.value);
-              setCurrentPage(1);
-            }}
+            onChange={(e) => updateParams({ tier: e.target.value })}
+            aria-label="Filter by WBI tier"
             className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
           >
             <option value="ALL">All WBI Tiers</option>
@@ -399,15 +393,12 @@ export default function CommunitiesPage() {
             <option value="Low">🟢 Low (&lt;40)</option>
           </select>
 
-          {/* Region Dropdown */}
           <div className="flex items-center gap-1.5">
             <FunnelIcon className="h-4 w-4 text-slate-400 shrink-0" />
             <select
               value={selectedRegion}
-              onChange={(e) => {
-                setSelectedRegion(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => updateParams({ region: e.target.value })}
+              aria-label="Filter by region"
               className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="ALL">All Regions ({regions.length})</option>
@@ -419,13 +410,10 @@ export default function CommunitiesPage() {
             </select>
           </div>
 
-          {/* Type Dropdown */}
           <select
             value={selectedType}
-            onChange={(e) => {
-              setSelectedType(e.target.value);
-              setCurrentPage(1);
-            }}
+            onChange={(e) => updateParams({ type: e.target.value })}
+            aria-label="Filter by community type"
             className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="ALL">All Types ({communityTypes.length})</option>
@@ -436,13 +424,10 @@ export default function CommunitiesPage() {
             ))}
           </select>
 
-          {/* Council Dropdown */}
           <select
             value={selectedCouncil}
-            onChange={(e) => {
-              setSelectedCouncil(e.target.value);
-              setCurrentPage(1);
-            }}
+            onChange={(e) => updateParams({ council: e.target.value })}
+            aria-label="Filter by council"
             className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-[160px]"
           >
             <option value="ALL">All Councils</option>
@@ -453,13 +438,10 @@ export default function CommunitiesPage() {
             ))}
           </select>
 
-          {/* Population Filter */}
           <select
             value={popFilter}
-            onChange={(e) => {
-              setPopFilter(e.target.value as "ALL" | "RECORDED" | "GT50" | "GT100");
-              setCurrentPage(1);
-            }}
+            onChange={(e) => updateParams({ pop: e.target.value })}
+            aria-label="Filter by population"
             className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="ALL">Population: Any</option>
@@ -468,32 +450,20 @@ export default function CommunitiesPage() {
             <option value="GT100">Population &gt; 100</option>
           </select>
 
-          {/* Sort Dropdown */}
           <div className="flex items-center gap-1.5 ml-auto">
             <span className="text-xs text-slate-400">Sort:</span>
             <select
               value={sortBy}
-              onChange={(e) => {
-                setSortBy(
-                  e.target.value as
-                    | "wbi-desc"
-                    | "wbi-asc"
-                    | "name-asc"
-                    | "name-desc"
-                    | "pop-desc"
-                    | "pop-asc"
-                    | "region"
-                );
-                setCurrentPage(1);
-              }}
+              onChange={(e) => updateParams({ sort: e.target.value })}
+              aria-label="Sort communities"
               className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
             >
-              <option value="wbi-desc">WBI Risk (High &rarr; Low)</option>
-              <option value="wbi-asc">WBI Risk (Low &rarr; High)</option>
-              <option value="name-asc">Name (A &rarr; Z)</option>
-              <option value="name-desc">Name (Z &rarr; A)</option>
-              <option value="pop-desc">Population (High &rarr; Low)</option>
-              <option value="pop-asc">Population (Low &rarr; High)</option>
+              <option value="wbi-desc">WBI Risk (High → Low)</option>
+              <option value="wbi-asc">WBI Risk (Low → High)</option>
+              <option value="name-asc">Name (A → Z)</option>
+              <option value="name-desc">Name (Z → A)</option>
+              <option value="pop-desc">Population (High → Low)</option>
+              <option value="pop-asc">Population (Low → High)</option>
               <option value="region">Region</option>
             </select>
           </div>
@@ -505,12 +475,14 @@ export default function CommunitiesPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center h-64 gap-3">
             <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm text-slate-500 font-medium">Computing Warning Blackspot Index for NT Communities...</p>
+            <p className="text-sm text-slate-500 font-medium">
+              Computing Warning Blackspot Index for NT Communities…
+            </p>
           </div>
-        ) : error ? (
+        ) : failure ? (
           <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-center max-w-lg mx-auto mt-12">
-            <p className="font-semibold">Unable to calculate WBI pipeline</p>
-            <p className="text-xs mt-1 text-red-600">{error}</p>
+            <p className="font-semibold">Unable to calculate the WBI pipeline</p>
+            <p className="text-xs mt-1 text-red-600">{failure}</p>
           </div>
         ) : filteredCommunities.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl border border-slate-200 max-w-lg mx-auto mt-8">
@@ -518,22 +490,14 @@ export default function CommunitiesPage() {
             <h3 className="text-base font-semibold text-slate-700">No communities match your filter criteria</h3>
             <p className="text-xs text-slate-400 mt-1">Try clearing your search query or adjusting the filters.</p>
             <button
-              onClick={() => {
-                setSearchTerm("");
-                setSelectedRegion("ALL");
-                setSelectedType("ALL");
-                setSelectedCouncil("ALL");
-                setSelectedTier("ALL");
-                setPopFilter("ALL");
-                setCurrentPage(1);
-              }}
+              type="button"
+              onClick={resetFilters}
               className="mt-4 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition"
             >
               Reset Filters
             </button>
           </div>
         ) : viewMode === "table" ? (
-          /* Table View */
           <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-600">
@@ -552,22 +516,24 @@ export default function CommunitiesPage() {
                 <tbody className="divide-y divide-slate-100 font-normal">
                   {paginatedCommunities.map((c) => {
                     const p = c.properties;
+                    const style = getWbiTierStyle(p.wbi_tier);
                     return (
                       <tr
                         key={p.community_id || p.objectid}
-                        className="hover:bg-indigo-50/50 transition cursor-pointer"
+                        tabIndex={0}
                         onClick={() => setSelectedCommunity(c)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelectedCommunity(c);
+                          }
+                        }}
+                        className="hover:bg-indigo-50/50 focus:bg-indigo-50/70 focus:outline-none transition cursor-pointer"
                       >
                         <td className="py-3 px-4">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className={`inline-block px-2 py-0.5 rounded-md text-xs border ${getWbiBadgeClass(
-                                p.wbi_tier
-                              )}`}
-                            >
-                              {p.wbi_score} ({p.wbi_tier})
-                            </span>
-                          </div>
+                          <span className={`inline-block px-2 py-0.5 rounded-md text-xs border ${style.badge}`}>
+                            {p.wbi_score} ({p.wbi_tier})
+                          </span>
                         </td>
                         <td className="py-3 px-4 font-semibold text-slate-900">
                           <div className="flex flex-col">
@@ -580,20 +546,12 @@ export default function CommunitiesPage() {
                           </div>
                         </td>
                         <td className="py-3 px-4">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getTypeBadgeClass(
-                              p.community_type
-                            )}`}
-                          >
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getTypeBadgeClass(p.community_type)}`}>
                             {p.community_type || "Outstation"}
                           </span>
                         </td>
                         <td className="py-3 px-4">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-medium border ${getRegionBadgeClass(
-                              p.ntg_region
-                            )}`}
-                          >
+                          <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-medium border ${getRegionBadgeClass(p.ntg_region)}`}>
                             {p.ntg_region || "NT"}
                           </span>
                         </td>
@@ -622,20 +580,21 @@ export default function CommunitiesPage() {
                         <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
                             <button
+                              type="button"
                               onClick={() => handleLocateOnMap(c)}
                               className="px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-md text-xs font-medium transition flex items-center gap-1"
-                              title="Locate on Leaflet Map"
+                              title="Locate on map"
                             >
                               <MapPinIcon className="h-3.5 w-3.5" />
                               <span>Map</span>
                             </button>
-                            {p.bushtel_url && (
+                            {safeUrl(p.bushtel_url) && (
                               <a
-                                href={p.bushtel_url}
+                                href={safeUrl(p.bushtel_url)!}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="p-1 text-slate-400 hover:text-indigo-600 rounded-md transition"
-                                title="Open BushTel Profile"
+                                title="Open BushTel profile"
                               >
                                 <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                               </a>
@@ -650,26 +609,28 @@ export default function CommunitiesPage() {
             </div>
           </div>
         ) : (
-          /* Card Grid View */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {paginatedCommunities.map((c) => {
               const p = c.properties;
+              const style = getWbiTierStyle(p.wbi_tier);
               return (
                 <div
                   key={p.community_id || p.objectid}
+                  tabIndex={0}
+                  role="button"
                   onClick={() => setSelectedCommunity(c)}
-                  className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs hover:shadow-md hover:border-indigo-300 transition cursor-pointer flex flex-col justify-between"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedCommunity(c);
+                    }
+                  }}
+                  className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs hover:shadow-md hover:border-indigo-300 focus:border-indigo-400 focus:outline-none transition cursor-pointer flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
-                      <span className={`px-2 py-0.5 rounded-md text-xs border ${getWbiBadgeClass(p.wbi_tier)}`}>
-                        WBI: {p.wbi_score}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getTypeBadgeClass(
-                          p.community_type
-                        )}`}
-                      >
+                      <span className={`px-2 py-0.5 rounded-md text-xs border ${style.badge}`}>WBI: {p.wbi_score}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getTypeBadgeClass(p.community_type)}`}>
                         {p.community_type || "Outstation"}
                       </span>
                     </div>
@@ -692,20 +653,16 @@ export default function CommunitiesPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-slate-400">Region:</span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${getRegionBadgeClass(
-                            p.ntg_region
-                          )}`}
-                        >
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${getRegionBadgeClass(p.ntg_region)}`}>
                           {p.ntg_region || "NT"}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Card Footer Actions */}
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                     <button
+                      type="button"
                       onClick={() => handleLocateOnMap(c)}
                       className="px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-md text-xs font-semibold transition flex items-center gap-1.5"
                     >
@@ -713,9 +670,9 @@ export default function CommunitiesPage() {
                       <span>View on Map</span>
                     </button>
 
-                    {p.bushtel_url && (
+                    {safeUrl(p.bushtel_url) && (
                       <a
-                        href={p.bushtel_url}
+                        href={safeUrl(p.bushtel_url)!}
                         target="_blank"
                         rel="noreferrer"
                         className="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1 font-medium transition"
@@ -732,20 +689,22 @@ export default function CommunitiesPage() {
         )}
 
         {/* Pagination Controls */}
-        {!loading && filteredCommunities.length > 0 && (
+        {!loading && !failure && filteredCommunities.length > 0 && (
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white px-4 py-3 border border-slate-200 rounded-xl shadow-xs">
             <div className="text-xs text-slate-500">
-              Showing <span className="font-semibold text-slate-700">{(currentPage - 1) * pageSize + 1}</span> to{" "}
+              Showing <span className="font-semibold text-slate-700">{(safePage - 1) * PAGE_SIZE + 1}</span> to{" "}
               <span className="font-semibold text-slate-700">
-                {Math.min(currentPage * pageSize, filteredCommunities.length)}
+                {Math.min(safePage * PAGE_SIZE, filteredCommunities.length)}
               </span>{" "}
               of <span className="font-semibold text-slate-700">{filteredCommunities.length}</span> communities
             </div>
 
             <div className="flex items-center gap-1.5">
               <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                type="button"
+                disabled={safePage === 1}
+                onClick={() => updateParams({ page: String(Math.max(1, safePage - 1)) }, false)}
+                aria-label="Previous page"
                 className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
                 <ChevronLeftIcon className="h-4 w-4" />
@@ -754,19 +713,17 @@ export default function CommunitiesPage() {
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 let pageNum = i + 1;
                 if (totalPages > 5) {
-                  if (currentPage > 3) {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  if (pageNum > totalPages) {
-                    pageNum = totalPages - 4 + i;
-                  }
+                  if (safePage > 3) pageNum = safePage - 2 + i;
+                  if (pageNum > totalPages) pageNum = totalPages - 4 + i;
                 }
                 return (
                   <button
+                    type="button"
                     key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
+                    onClick={() => updateParams({ page: String(pageNum) }, false)}
+                    aria-current={safePage === pageNum ? "page" : undefined}
                     className={`w-8 h-8 rounded-lg text-xs font-semibold transition ${
-                      currentPage === pageNum
+                      safePage === pageNum
                         ? "bg-indigo-600 text-white"
                         : "border border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
@@ -777,8 +734,10 @@ export default function CommunitiesPage() {
               })}
 
               <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                type="button"
+                disabled={safePage === totalPages}
+                onClick={() => updateParams({ page: String(Math.min(totalPages, safePage + 1)) }, false)}
+                aria-label="Next page"
                 className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
                 <ChevronRightIcon className="h-4 w-4" />
@@ -795,11 +754,18 @@ export default function CommunitiesPage() {
           onClick={() => setSelectedCommunity(null)}
         >
           <div
-            className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 relative overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${selectedCommunity.properties.community_name} details`}
+            tabIndex={-1}
+            className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 relative overflow-hidden focus:outline-none"
             onClick={(e) => e.stopPropagation()}
           >
             <button
+              type="button"
               onClick={() => setSelectedCommunity(null)}
+              aria-label="Close details"
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
             >
               <XMarkIcon className="h-5 w-5" />
@@ -811,18 +777,10 @@ export default function CommunitiesPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getTypeBadgeClass(
-                      selectedCommunity.properties.community_type
-                    )}`}
-                  >
+                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getTypeBadgeClass(selectedCommunity.properties.community_type)}`}>
                     {selectedCommunity.properties.community_type || "Outstation"}
                   </span>
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded-md text-[10px] border ${getWbiBadgeClass(
-                      selectedCommunity.properties.wbi_tier
-                    )}`}
-                  >
+                  <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] border ${getWbiTierStyle(selectedCommunity.properties.wbi_tier).badge}`}>
                     WBI Tier: {selectedCommunity.properties.wbi_tier}
                   </span>
                 </div>
@@ -832,35 +790,23 @@ export default function CommunitiesPage() {
               </div>
             </div>
 
-            {/* WBI Pillar Breakdown Grid */}
             <div className="mt-4 p-3 bg-slate-900 text-white rounded-xl">
               <div className="flex items-center justify-between border-b border-slate-700 pb-2 mb-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">
                   Warning Blackspot Index (WBI)
                 </span>
-                <span className="text-lg font-bold text-amber-400">{selectedCommunity.properties.wbi_score} / 100</span>
+                <span className="text-lg font-bold text-amber-400">
+                  {selectedCommunity.properties.wbi_score} / 100
+                </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-slate-400 block">Connectivity Gap:</span>
-                  <span className="font-semibold text-white">{selectedCommunity.properties.connectivity_gap_score} / 100</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Hazard Exposure:</span>
-                  <span className="font-semibold text-white">{selectedCommunity.properties.hazard_score} / 100</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Tower Proximity:</span>
-                  <span className="font-semibold text-white">{selectedCommunity.properties.proximity_score} / 100</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Digital Exclusion:</span>
-                  <span className="font-semibold text-white">{selectedCommunity.properties.digital_exclusion_score} / 100</span>
-                </div>
+                <Pillar label="Connectivity Gap" value={selectedCommunity.properties.connectivity_gap_score} />
+                <Pillar label="Hazard Exposure" value={selectedCommunity.properties.hazard_score} />
+                <Pillar label="Tower Proximity" value={selectedCommunity.properties.proximity_score} />
+                <Pillar label="Digital Exclusion" value={selectedCommunity.properties.digital_exclusion_score} />
               </div>
             </div>
 
-            {/* Standard Community Specs */}
             <div className="grid grid-cols-2 gap-3 mt-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-100">
               <div>
                 <span className="text-slate-400 block">Coverage Status</span>
@@ -887,9 +833,9 @@ export default function CommunitiesPage() {
             </div>
 
             <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-              {selectedCommunity.properties.bushtel_url && (
+              {safeUrl(selectedCommunity.properties.bushtel_url) && (
                 <a
-                  href={selectedCommunity.properties.bushtel_url}
+                  href={safeUrl(selectedCommunity.properties.bushtel_url)!}
                   target="_blank"
                   rel="noreferrer"
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
@@ -899,10 +845,8 @@ export default function CommunitiesPage() {
                 </a>
               )}
               <button
-                onClick={() => {
-                  handleLocateOnMap(selectedCommunity);
-                  setSelectedCommunity(null);
-                }}
+                type="button"
+                onClick={() => handleLocateOnMap(selectedCommunity)}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-xs"
               >
                 <MapPinIcon className="h-4 w-4" />
@@ -912,6 +856,23 @@ export default function CommunitiesPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function uniqueSorted(values: Array<string | undefined | null>): string[] {
+  const set = new Set<string>();
+  values.forEach((value) => {
+    if (value) set.add(value);
+  });
+  return Array.from(set).sort();
+}
+
+function Pillar({ label, value }: { label: string; value: number | undefined }) {
+  return (
+    <div>
+      <span className="text-slate-400 block">{label}:</span>
+      <span className="font-semibold text-white">{value ?? "—"} / 100</span>
     </div>
   );
 }

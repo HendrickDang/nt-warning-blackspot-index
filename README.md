@@ -10,7 +10,7 @@ run them from that project's directory.
 | --- | --- | --- |
 | `Warning_Blackspot_App_Source_Code/` | Warning blackspot web application (Vite/Vinext) | `npm run dev`; `npm test` |
 | `nt-housing-triage/` | Housing maintenance triage dashboard (Next.js) | `npm run dev`; `npm test` |
-| `connectivity-dashboard1/` | Connectivity and community mapping dashboard (Vite) | `npm run dev`; `npm run build` |
+| `connectivity-dashboard1/` | Connectivity and community mapping dashboard (Vite) | `npm run dev`; `npm run build`; `npm test` |
 | `Bushfire_analysis/` | Bushfire analysis script, source data, and figures | Python with `pandas` and `matplotlib` |
 | `Documents/` | Supporting report | — |
 
