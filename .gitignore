@@ -1,0 +1,36 @@
+# Dependencies and build output
+**/node_modules/
+**/.next/
+**/out/
+**/dist/
+**/dist-ssr/
+
+# Local environment and editor / OS files
+**/.env
+**/.env.*
+!**/.env.example
+.DS_Store
+Thumbs.db
+*.local
+
+# Logs and TypeScript build metadata
+*.log
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python-generated files
+**/__pycache__/
+*.py[cod]
+
+# Local database state
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Model-training outputs and compiled caches
+**/training/out/
+**/training/models/
+/unsloth_compiled_cache/

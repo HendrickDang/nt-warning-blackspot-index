@@ -4,6 +4,7 @@ import { useState } from "react";
 import { buildJob } from "@/lib/engine/scoring";
 import type { Job } from "@/lib/engine/types";
 import type { ParseResult } from "@/lib/parser/types";
+import { COMMUNITIES } from "@/lib/data/communities";
 
 interface Props {
   onAdd: (job: Job) => void;
@@ -11,6 +12,7 @@ interface Props {
 
 export default function ReportForm({ onAdd }: Props) {
   const [text, setText] = useState("");
+  const [community, setCommunity] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ParseResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +28,7 @@ export default function ReportForm({ onAdd }: Props) {
       const res = await fetch("/api/parse", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text, id }),
+        body: JSON.stringify({ text, id, community: community || undefined }),
       });
       if (!res.ok) throw new Error(`Parse failed (${res.status})`);
       const parsed = (await res.json()) as ParseResult;
@@ -42,6 +44,8 @@ export default function ReportForm({ onAdd }: Props) {
       if (job) {
         onAdd(job);
         setText("");
+      } else if (!parsed.community) {
+        setError("No community detected — pick one below, then try again.");
       } else {
         setError(buildError ?? "Could not place this report on the map.");
       }
@@ -66,6 +70,21 @@ export default function ReportForm({ onAdd }: Props) {
         placeholder="e.g. roof is leaking over the kids bed and the ceiling is sagging, in Wadeye"
         className="mt-3 w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-2.5 text-sm text-slate-100 outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
       />
+      <label className="mt-3 block text-[11px] uppercase tracking-wide text-[var(--muted)]">
+        Community (if not in the text)
+      </label>
+      <select
+        value={community}
+        onChange={(e) => setCommunity(e.target.value)}
+        className="mt-1.5 w-full rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-2.5 text-sm text-slate-100 outline-none focus:border-[var(--accent)]"
+      >
+        <option value="">Auto-detect from text</option>
+        {COMMUNITIES.map((c) => (
+          <option key={c.id} value={c.name}>
+            {c.name}
+          </option>
+        ))}
+      </select>
       <button
         onClick={submit}
         disabled={busy || !text.trim()}
