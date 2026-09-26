@@ -6,6 +6,7 @@
 **/dist-ssr/
 
 # Local environment and editor / OS files
+/opencode.json
 **/.env
 **/.env.*
 !**/.env.example

@@ -39,25 +39,49 @@ from the same scores the coordinator sees.
   in a local file (`data/nt-triage.sqlite`) via Node's built-in `node:sqlite`.
   No server, no cloud — consistent with the offline, on-country promise.
 
-## Run it
+## Run the app from a clone
+
+### Prerequisites
+
+- Git
+- Node.js **22.5 or newer** and npm
+
+The app uses Node's built-in `node:sqlite`; you do not need to install or run a
+separate database server.
+
+### Install and start
+
+Clone the repository, then install and run the housing-triage app from its
+directory (the repository root contains other projects too). Replace
+`<repository-url>` with the clone URL shown on the repository page:
 
 ```bash
-npm install
-npm run dev            # http://localhost:3000
+git clone <repository-url> nt-warning-blackspot-index
+cd nt-warning-blackspot-index/nt-housing-triage
+npm ci
+npm run dev
 ```
 
-The app runs with **zero setup**: the seeded demo queue and the deterministic
-parser work offline. To use the fine-tuned model, see `training/README.md` and
-copy `.env.example` to `.env`.
+Open [http://localhost:3000](http://localhost:3000). Stop the development server
+with `Ctrl+C` in the terminal.
 
-Other commands:
+No environment file or model is required for the demo. On first use, the app
+creates and seeds its local SQLite database at `data/nt-triage.sqlite`. The
+deterministic parser works without a network connection or Ollama. To enable the
+optional local model parser, follow `training/README.md` and configure the values
+from `.env.example` in a local `.env` file.
+
+### Common commands
+
+Run these from `nt-housing-triage/`:
 
 ```bash
-npm test                 # engine, parser (golden set) and generator tests
-npm run build            # production build
+npm test                 # run the test suite
+npm run build            # create a production build
+npm run start            # serve the production build
 npm run data:generate    # regenerate data/distance-matrix.json
-npm run db:reset         # wipe the local SQLite db (reseeds on next run)
-npm run training:generate -- 3000   # build the fine-tune dataset
+npm run db:reset         # delete the local database; it is reseeded on next run
+npm run training:generate -- 3000   # build the fine-tuning dataset
 ```
 
 ## Layout
