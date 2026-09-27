@@ -1,0 +1,12 @@
+variant,spearman_rho,critical_band_retained_pct
+Arithmetic mean instead of geometric,0.944,84
+Hazard mapping 1.0 / 0.5 / 0.2,0.994,88
+Hazard mapping 1.0 / 0.7 / 0.4,0.994,94
+Linear population,0.837,23
+Imputed population at type 25th percentile,0.994,94
+Imputed population at type 75th percentile,0.993,81
+Carrier radius 25 km,0.994,91
+Carrier radius 50 km,0.987,93
+Distance scale 30 km,0.996,91
+Distance scale 80 km,0.998,99
+Coverage polygon only (no tower override),0.974,94

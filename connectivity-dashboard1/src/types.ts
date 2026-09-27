@@ -31,49 +31,28 @@ export interface CommunityFeature {
     population_count: number | null;
     longitude: number;
     latitude: number;
-    // Optional fields present on some datasets / risk CSV fallbacks
-    RATING?: string;
-    rating?: string;
-    COMMUNITY?: string;
-    COMMTYPE?: string;
-    POPULATION?: number;
-    // WBI enriched fields
-    wbi_score?: number;
-    wbi_tier?: "Critical" | "High" | "Moderate" | "Low";
-    hazard_risk?: "Extreme" | "High" | "Moderate" | "Low";
-    coverage_status?: string;
+    // Fields added by Bushfire_analysis/wbi_index.py (public/data/wbi_communities.geojson)
+    population_used_in_index?: number;
+    population_basis?: "risk_dataset" | "bushtel" | "imputed_type_median";
+    risk_rating?: "High" | "Moderate" | "Low";
+    fire_plan?: string;
+    firebreak?: string;
+    fuel_reduction?: string;
     has_coverage?: boolean;
+    coverage_status?: string;
+    nearest_tower_km?: number;
     nearby_carriers?: number;
     carrier_names?: string;
-    nearest_tower_km?: number;
-    nearest_tower_carriers?: string;
-    nearest_tower_4g?: boolean;
-    nearest_tower_5g?: boolean;
-    connectivity_gap_score?: number;
-    hazard_score?: number;
-    proximity_score?: number;
-    digital_exclusion_score?: number;
+    hazard_H?: number;
+    unreachability_U?: number;
+    exposure_E?: number;
+    wbi_score?: number;
+    wbi_tier?: "Critical" | "High" | "Moderate" | "Low";
+    wbi_rank?: number;
+    strict_blackspot?: boolean;
   };
   geometry: {
     type: string;
     coordinates: [number, number];
   };
-}
-
-/** A de-duplicated mobile tower site used by the WBI proximity pillar. */
-export interface TowerSite {
-  lat: number;
-  lon: number;
-  carriers: Set<string>;
-  has4G: boolean;
-  has5G: boolean;
-}
-
-/** A coverage polygon ring with a pre-computed bounding box for fast lookup. */
-export interface CoverageRing {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-  ring: number[][];
 }

@@ -40,26 +40,34 @@ export default function HelpPage() {
             Warning Blackspot Index (WBI) Framework
           </h2>
           <p className="text-xs text-slate-600 leading-relaxed mt-2">
-            The composite <strong>Warning Blackspot Index (WBI)</strong> evaluates community risk on a scale of 0 to 100 using four weighted pillars:
+            The <strong>Warning Blackspot Index (WBI)</strong> asks one question of each of the 765 communities in the
+            Bushfires NT risk dataset: if a fire threatens this community tomorrow, can anyone tell them? It combines
+            three components, each scaled 0 to 1:
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-xs">
+          <p className="text-sm font-semibold text-slate-900 mt-3 text-center">WBI = 100 × (H × U × E)^(1/3)</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 text-xs">
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <strong className="text-indigo-900 block font-semibold">1. Connectivity Gap (35%)</strong>
-              Evaluates cellular network coverage contours (Telstra/Optus) and multi-carrier redundancy in the immediate area.
+              <strong className="text-indigo-900 block font-semibold">H: Hazard</strong>
+              The published Bushfires NT risk rating: High = 1.0, Moderate = 0.6, Low = 0.3.
             </div>
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <strong className="text-indigo-900 block font-semibold">2. Natural Hazard Exposure (25%)</strong>
-              Mapped directly from the official <code>Community_Bushfire_Risk.csv</code> rating (High = 90, Moderate = 65, Low = 30).
+              <strong className="text-indigo-900 block font-semibold">U: Unreachability</strong>
+              Average of three terms: outside predicted coverage (a registered tower within 5 km counts as covered),
+              distance to the nearest tower (worst at 50 km), and how few of the three carriers have a tower within
+              35 km.
             </div>
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <strong className="text-indigo-900 block font-semibold">3. Infrastructure Proximity (20%)</strong>
-              Measures geographical distance to the nearest active communications tower site using Haversine calculation.
-            </div>
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <strong className="text-indigo-900 block font-semibold">4. Digital Exclusion (20%)</strong>
-              Accounts for community scale (outstation vs major town) and primary spoken language barriers.
+              <strong className="text-indigo-900 block font-semibold">E: Exposure</strong>
+              Population on a log scale so small outstations stay visible. Where no population is recorded, the
+              median for that community type is used and flagged.
             </div>
           </div>
+          <p className="text-xs text-slate-600 leading-relaxed mt-3">
+            A geometric mean means one strong component cannot hide another: a well-connected community is not a
+            warning blackspot however high its fire risk. Bands: Critical 60+, High 50 to 59, Moderate 35 to 49,
+            Low under 35. Scores are computed by <code>Bushfire_analysis/wbi_index.py</code>, which also tests how
+            stable the ranking is under alternative choices.
+          </p>
         </div>
 
         {/* Data Sources & Provenance */}
@@ -78,8 +86,8 @@ export default function HelpPage() {
               Custodians: Bushfires NT / NT Fire and Emergency Services (NTFES). Provides bushfire hazard risk ratings, fire plan status, firebreaks, and fuel reduction status.
             </div>
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-              <strong className="text-slate-800 block">NT Remote Mobile Coverage & Towers</strong>
-              Custodians: ACMA / Carrier Data. Contains cell tower coordinates and cellular coverage contours.
+              <strong className="text-slate-800 block">Mobile Coverage & Tower Sites</strong>
+              Predicted mobile coverage polygons and mobile tower site locations by carrier (RFNSA site IDs).
             </div>
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
               <strong className="text-slate-800 block">NAFI / FireNorth — Active Fire Hotspots & Burnt Areas (WMS)</strong>

@@ -39,7 +39,8 @@ cr['rating_num'] = cr['RATING'].map(rating_map)
 
 print("\nNT fire history summary:")
 print(f"  Total NT records: {len(fh_nt)}")
-print(f"  Year range: {fh_nt['year'].min():.0f} to {fh_nt['year'].max():.0f}")
+print(f"  Year range: {fh_nt['year'].min():.0f} to {fh_nt['year'].max():.0f} "
+      f"({(fh_nt['year'] == 2025).sum()} of {len(fh_nt)} records are from 2025)")
 print(f"  Total area burned (ha): {fh_nt['area_ha'].sum():,.0f}")
 
 print("\nCommunity risk summary:")
@@ -65,12 +66,17 @@ for bar, val in zip(bars, rating_counts.values):
                  str(val), ha='center', fontweight='bold')
 axes[0].set_ylim(0, rating_counts.max() * 1.15)
 
-high_risk = cr[cr['RATING'] == 'High']
-plan_counts = high_risk['FIREPLAN'].value_counts()
-axes[1].pie(plan_counts.values, labels=plan_counts.index, autopct='%1.1f%%',
-            colors=['#F44336', '#4CAF50'], startangle=90,
-            wedgeprops=dict(edgecolor='white', linewidth=1.5))
-axes[1].set_title('High-Risk Communities:\nFire Plan Status', fontweight='bold')
+# share of communities with an approved fire plan, by rating
+# (all 168 High-risk communities record no plan, so a pie of High only would be a single slice)
+plan_pct = [(cr.loc[cr['RATING'] == r, 'FIREPLAN'] == 'Yes').mean() * 100 for r in ['Low', 'Moderate', 'High']]
+plan_bars = axes[1].bar(['Low', 'Moderate', 'High'], plan_pct,
+                        color=[colors[r] for r in ['Low', 'Moderate', 'High']], edgecolor='white', linewidth=1.2)
+for bar, val in zip(plan_bars, plan_pct):
+    axes[1].text(bar.get_x() + bar.get_width() / 2, val + 0.5, f'{val:.0f}%', ha='center', fontweight='bold')
+axes[1].set_title('Communities with an Approved Fire Plan', fontweight='bold')
+axes[1].set_xlabel('Risk Rating')
+axes[1].set_ylabel('% of Communities')
+axes[1].set_ylim(0, max(plan_pct) * 1.25)
 
 plt.tight_layout()
 plt.savefig('fig1_community_risk_overview.png', dpi=150, bbox_inches='tight')
@@ -79,16 +85,19 @@ print("Saved: fig1_community_risk_overview.png")
 
 
 # figure 2 - fire history temporal patterns
+month_names_short = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 fig.suptitle('NT Fire History - Temporal Patterns', fontsize=14, fontweight='bold')
 
-yearly = fh_nt.groupby('year').size().reset_index(name='count')
-yearly = yearly[yearly['year'].between(2015, 2025)]
-axes[0].bar(yearly['year'], yearly['count'], color='#E64A19', edgecolor='white', linewidth=0.8)
-axes[0].set_title('NT Fires per Year (2015-2025)', fontweight='bold')
-axes[0].set_xlabel('Year')
-axes[0].set_ylabel('Number of Fire Events')
-axes[0].tick_params(axis='x', rotation=45)
+# The published extract covers roughly Jan to Aug 2025 (a handful of older records),
+# so it is one fire season, not a multi-year history. Plot area burned per month of 2025.
+fh25 = fh_nt[fh_nt['year'] == 2025]
+area_m = fh25.groupby('month')['area_ha'].sum() / 1000
+axes[0].bar([month_names_short[m - 1] for m in area_m.index], area_m.values,
+            color='#E64A19', edgecolor='white', linewidth=0.8)
+axes[0].set_title('Area Burned per Month, 2025 Season\n(x1,000 ha)', fontweight='bold')
+axes[0].set_xlabel('Month (2025)')
+axes[0].set_ylabel('Area burned (x1,000 ha)')
 
 monthly = fh_nt.groupby('month').size().reset_index(name='count')
 month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

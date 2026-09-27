@@ -17,13 +17,6 @@ import {
   SignalIcon,
 } from "@heroicons/react/24/outline";
 
-// Import the updated WBI calculation utilities
-import {
-  buildCoverageIndex,
-  extractNTTowerSites,
-  createBushfireRiskMap,
-  computeCommunityWBI,
-} from "../utils/wbiCalculators";
 import type { CommunityFeature } from "../types";
 
 export default function CommunitiesPage() {
@@ -51,65 +44,25 @@ export default function CommunitiesPage() {
   // Selected for detail modal
   const [selectedCommunity, setSelectedCommunity] = useState<CommunityFeature | null>(null);
 
-  // Helper to parse simple CSV text into objects
-  const parseCSV = (csvText: string) => {
-    const lines = csvText.split("\n").filter((l) => l.trim().length > 0);
-    if (lines.length < 2) return [];
-    const headers = lines[0].split(",").map((h) => h.trim());
-    return lines.slice(1).map((line) => {
-      const values = line.split(",").map((v) => v.trim());
-      const row: Record<string, string> = {};
-      headers.forEach((h, idx) => {
-        row[h] = values[idx] || "";
-      });
-      return row;
-    });
-  };
-
-  // Load and compute WBI pipeline client-side
+  // Load WBI scores computed by Bushfire_analysis/wbi_index.py. The index is
+  // calculated once in Python and shipped as a static file, so the dashboard
+  // shows exactly the numbers in the report and works with no network.
   useEffect(() => {
-    async function loadDataAndComputeWBI() {
+    async function loadWbiScores() {
       try {
-        const [commRes, covRes, towerRes, riskRes] = await Promise.all([
-          fetch("/data/communities.geojson").catch(() => fetch("src/data/communities.geojson")),
-          fetch("/data/coverage.geojson").catch(() => fetch("src/data/coverage.geojson")),
-          fetch("/data/towers.geojson").catch(() => fetch("src/data/towers.geojson")),
-          fetch("/data/Community_Bushfire_Risk.csv").catch(() => fetch("src/data/Community_Bushfire_Risk.csv")),
-        ]);
-
-        if (!commRes.ok) throw new Error("Failed to load communities dataset");
-
-        const commData = await commRes.json();
-        const covData = covRes.ok ? await covRes.json() : null;
-        const towerData = towerRes.ok ? await towerRes.json() : null;
-
-        let bushfireRiskMap: Map<string, string> | undefined;
-        if (riskRes.ok) {
-          const csvText = await riskRes.text();
-          const parsedRecords = parseCSV(csvText);
-          bushfireRiskMap = createBushfireRiskMap(parsedRecords);
-        }
-
-        // Process spatial indexes if extra datasets exist
-        const covRings = covData ? buildCoverageIndex(covData) : [];
-        const towerSites = towerData ? extractNTTowerSites(towerData) : [];
-
-        // Enrich communities with WBI scores using CSV risk ratings
-        const enrichedFeatures = commData.features.map((feature: CommunityFeature) => ({
-          ...feature,
-          properties: computeCommunityWBI(feature, towerSites, covRings, bushfireRiskMap),
-        }));
-
-        setCommunities(enrichedFeatures);
+        const res = await fetch("/data/wbi_communities.geojson");
+        if (!res.ok) throw new Error("Failed to load WBI scores (run Bushfire_analysis/wbi_index.py)");
+        const data = await res.json();
+        setCommunities(data.features as CommunityFeature[]);
         setLoading(false);
       } catch (err) {
-        console.error("Error running WBI pipeline:", err);
-        setError(err instanceof Error ? err.message : "Failed to load communities pipeline");
+        console.error("Error loading WBI scores:", err);
+        setError(err instanceof Error ? err.message : "Failed to load WBI scores");
         setLoading(false);
       }
     }
 
-    loadDataAndComputeWBI();
+    loadWbiScores();
   }, []);
 
   // Filter options derived from data
@@ -302,7 +255,7 @@ export default function CommunitiesPage() {
               </h1>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Live multi-dimensional Warning Blackspot Index (WBI) calculated using CSV bushfire hazard ratings
+              Warning Blackspot Index (WBI) for 765 communities: bushfire risk × unreachability × exposure. Scores from Bushfire_analysis/wbi_index.py.
             </p>
           </div>
 
@@ -393,10 +346,10 @@ export default function CommunitiesPage() {
             className="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
           >
             <option value="ALL">All WBI Tiers</option>
-            <option value="Critical">🔴 Critical (≥75)</option>
-            <option value="High">🟠 High (60-74)</option>
-            <option value="Moderate">🟡 Moderate (40-59)</option>
-            <option value="Low">🟢 Low (&lt;40)</option>
+            <option value="Critical">🔴 Critical (≥60)</option>
+            <option value="High">🟠 High (50-59)</option>
+            <option value="Moderate">🟡 Moderate (35-49)</option>
+            <option value="Low">🟢 Low (&lt;35)</option>
           </select>
 
           {/* Region Dropdown */}
@@ -842,22 +795,30 @@ export default function CommunitiesPage() {
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-slate-400 block">Connectivity Gap:</span>
-                  <span className="font-semibold text-white">{selectedCommunity.properties.connectivity_gap_score} / 100</span>
+                  <span className="text-slate-400 block">Hazard (H):</span>
+                  <span className="font-semibold text-white">
+                    {selectedCommunity.properties.hazard_H?.toFixed(2)} ({selectedCommunity.properties.risk_rating} risk)
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Hazard Exposure:</span>
-                  <span className="font-semibold text-white">{selectedCommunity.properties.hazard_score} / 100</span>
+                  <span className="text-slate-400 block">Unreachability (U):</span>
+                  <span className="font-semibold text-white">{selectedCommunity.properties.unreachability_U?.toFixed(2)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Tower Proximity:</span>
-                  <span className="font-semibold text-white">{selectedCommunity.properties.proximity_score} / 100</span>
+                  <span className="text-slate-400 block">Exposure (E):</span>
+                  <span className="font-semibold text-white">
+                    {selectedCommunity.properties.exposure_E?.toFixed(2)}
+                    {selectedCommunity.properties.population_basis === "imputed_type_median" ? " (population estimated)" : ""}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Digital Exclusion:</span>
-                  <span className="font-semibold text-white">{selectedCommunity.properties.digital_exclusion_score} / 100</span>
+                  <span className="text-slate-400 block">Rank:</span>
+                  <span className="font-semibold text-white">
+                    #{selectedCommunity.properties.wbi_rank} of {communities.length}
+                  </span>
                 </div>
               </div>
+              <p className="text-[10px] text-slate-400 mt-2">WBI = 100 × (H × U × E)^(1/3), each component scaled 0 to 1.</p>
             </div>
 
             {/* Standard Community Specs */}
@@ -869,7 +830,7 @@ export default function CommunitiesPage() {
                 </span>
               </div>
               <div>
-                <span className="text-slate-400 block">Nearest ACMA Tower</span>
+                <span className="text-slate-400 block">Nearest Tower</span>
                 <span className="font-semibold text-slate-800">{selectedCommunity.properties.nearest_tower_km} km</span>
               </div>
               <div>
