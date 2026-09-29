@@ -12,6 +12,17 @@ export interface LayerState {
   burntAreas: boolean;
 }
 
+/** Default visibility applied when no `?layers=` state is present. */
+export const DEFAULT_LAYERS: LayerState = {
+  towers: true,
+  communities: true,
+  coverage: false,
+  baseMap: true,
+  ntBoundary: true,
+  activeBushfires: true,
+  burntAreas: false,
+};
+
 export interface CommunityFeature {
   type: string;
   properties: {
@@ -56,3 +67,49 @@ export interface CommunityFeature {
     coordinates: [number, number];
   };
 }
+
+/** A de-duplicated mobile tower site used by the WBI proximity pillar. */
+export interface TowerSite {
+  lat: number;
+  lon: number;
+  carriers: Set<string>;
+  has4G: boolean;
+  has5G: boolean;
+}
+
+/** A coverage polygon ring with a pre-computed bounding box for fast lookup. */
+export interface CoverageRing {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  ring: number[][];
+}
+
+/** Properties on the app's NT-filtered tower dataset (see scripts/prepare-data.mjs). */
+export interface TowerProperties {
+  name: string;
+  carrier: string;
+  has4G: boolean;
+  has5G: boolean;
+  rfnsa_id: number | null;
+  remoteness: string | null;
+}
+
+export interface TowerFeature {
+  type: "Feature";
+  properties: TowerProperties;
+  geometry: { type: "Point"; coordinates: [number, number] };
+}
+
+export interface TowerFeatureCollection {
+  type: "FeatureCollection";
+  features: TowerFeature[];
+}
+
+/** Loose GeoJSON collection shape for datasets rendered directly by Leaflet. */
+export interface GeoJsonCollection {
+  type: string;
+  features?: unknown[];
+}
+

@@ -54,24 +54,46 @@ detail.
 ## Data and network access
 
 Community, coverage, tower, boundary, and bushfire-risk datasets are bundled in
-`public/data/`. Keep these files in place; the app loads them at runtime. The
-basemap uses OpenStreetMap, and live fire overlays are served by the NAFI /
-FireNorth WMS, so those layers require an internet connection. Bundled datasets
-provide the underlying community and connectivity views.
+`public/data/`. Keep these files in place; the app loads them at runtime through
+a single shared data layer (see below). The basemap uses OpenStreetMap, and live
+fire overlays are served by the NAFI / FireNorth WMS, so those layers require an
+internet connection. Bundled datasets provide the underlying community and
+connectivity views.
+
+The shipped `towers.geojson` is filtered to Northern Territory sites and the
+`coverage.geojson` coordinates are rounded to ~1 m precision. Rerun
+`npm run prepare-data` to regenerate both from fresh upstream exports (the
+script documents where each dataset comes from). The original national towers
+dataset remains recoverable from git history.
 
 Data custodians and attribution are documented in the dashboard's **Help &
 Support** page. Fire-layer attribution is also shown on the map.
+
+## Architecture notes
+
+- **Shared data layer** — `src/context/DataProvider.tsx` loads every dataset
+  once, so the map, analytics and community directory reuse the same data and
+  the WBI score is computed once rather than per page. The heavy coverage
+  contours are loaded lazily, only when the coverage layer or the WBI is needed.
+- **WBI engine** — `src/utils/wbiCalculators.ts` is the single source of truth
+  for the Warning Blackspot Index (Connectivity Gap 35%, Natural Hazard 25%,
+  Infrastructure Proximity 20%, Digital Exclusion 20%).
+- **Layer state in the URL** — visible map layers are encoded in the `?layers=`
+  query parameter, and the community directory keeps its filters, sort and page
+  in the URL so any view can be shared.
 
 ## Development commands
 
 Run commands from `connectivity-dashboard1/`:
 
 ```bash
-npm run dev       # start the Vite development server
-npm run build     # type-check and create the production bundle in dist/
-npm run preview   # preview the production bundle after building
-npm run lint      # run ESLint
+npm run dev          # start the Vite development server
+npm run build        # type-check and create the production bundle in dist/
+npm run preview      # preview the production bundle after building
+npm run lint         # run ESLint
+npm test             # run the Vitest unit tests
+npm run prepare-data # regenerate the NT tower and coverage datasets
 ```
 
-The app uses React, TypeScript, Vite, Leaflet, and Plotly. There is no test
-script currently defined in this project's `package.json`.
+The app uses React, TypeScript, Vite, Leaflet, and Plotly. Unit tests cover the
+pure WBI calculators, the data loader, CSV parsing, and HTML escaping.
