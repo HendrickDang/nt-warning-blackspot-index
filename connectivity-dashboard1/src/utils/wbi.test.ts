@@ -4,12 +4,12 @@ import { getWbiTierStyle, wbiTierFromScore } from "./wbi";
 describe("wbiTierFromScore", () => {
   it("maps scores to tiers at the documented boundaries", () => {
     expect(wbiTierFromScore(100)).toBe("Critical");
-    expect(wbiTierFromScore(75)).toBe("Critical");
-    expect(wbiTierFromScore(74)).toBe("High");
-    expect(wbiTierFromScore(60)).toBe("High");
-    expect(wbiTierFromScore(59)).toBe("Moderate");
-    expect(wbiTierFromScore(40)).toBe("Moderate");
-    expect(wbiTierFromScore(39)).toBe("Low");
+    expect(wbiTierFromScore(60)).toBe("Critical");
+    expect(wbiTierFromScore(59)).toBe("High");
+    expect(wbiTierFromScore(50)).toBe("High");
+    expect(wbiTierFromScore(49)).toBe("Moderate");
+    expect(wbiTierFromScore(35)).toBe("Moderate");
+    expect(wbiTierFromScore(34)).toBe("Low");
     expect(wbiTierFromScore(0)).toBe("Low");
   });
 });

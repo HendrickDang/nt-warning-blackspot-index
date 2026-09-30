@@ -14,6 +14,7 @@ import { createBushfireRiskMap } from "../utils/wbiCalculators";
 import { DataContext } from "./dataContext";
 import type {
   DataContextValue,
+  DisasterStatus,
   LoadStatus,
   ReportsSource,
   ReportsStatus,

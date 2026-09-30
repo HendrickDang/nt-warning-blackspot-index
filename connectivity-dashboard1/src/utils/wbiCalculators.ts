@@ -1,4 +1,10 @@
-// src/utils/wbiCalculator.ts
+// src/utils/wbiCalculators.ts
+//
+// Geometry helpers (coverage rings, tower sites, point-in-polygon) used by the map
+// and disaster layers. computeCommunityWBI below is an earlier four-pillar
+// prototype kept for its tests; the app does NOT use it. The WBI shown in the
+// dashboard is loaded from public/data/wbi_communities.geojson, produced by
+// Bushfire_analysis/wbi_index.py (WBI = 100 x (H x U x E)^(1/3)).
 
 import type {
   CommunityFeature,
