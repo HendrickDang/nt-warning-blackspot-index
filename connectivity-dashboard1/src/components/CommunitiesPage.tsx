@@ -800,10 +800,13 @@ export default function CommunitiesPage() {
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <Pillar label="Connectivity Gap" value={selectedCommunity.properties.connectivity_gap_score} />
-                <Pillar label="Hazard Exposure" value={selectedCommunity.properties.hazard_score} />
-                <Pillar label="Tower Proximity" value={selectedCommunity.properties.proximity_score} />
-                <Pillar label="Digital Exclusion" value={selectedCommunity.properties.digital_exclusion_score} />
+                <Pillar label="Hazard (H)" value={fmt01(selectedCommunity.properties.hazard_H)} />
+                <Pillar label="Unreachability (U)" value={fmt01(selectedCommunity.properties.unreachability_U)} />
+                <Pillar label="Exposure (E)" value={fmt01(selectedCommunity.properties.exposure_E)} />
+                <Pillar
+                  label="Rank"
+                  value={selectedCommunity.properties.wbi_rank ? `#${selectedCommunity.properties.wbi_rank} of 765` : "—"}
+                />
               </div>
               <p className="text-[10px] text-slate-400 mt-2">WBI = 100 × (H × U × E)^(1/3), each component scaled 0 to 1.</p>
             </div>
@@ -869,11 +872,13 @@ function uniqueSorted(values: Array<string | undefined | null>): string[] {
   return Array.from(set).sort();
 }
 
-function Pillar({ label, value }: { label: string; value: number | undefined }) {
+function Pillar({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <span className="text-slate-400 block">{label}:</span>
-      <span className="font-semibold text-white">{value ?? "—"} / 100</span>
+      <span className="font-semibold text-white">{value}</span>
     </div>
   );
 }
+
+const fmt01 = (v: number | undefined) => (v === undefined ? "—" : v.toFixed(2));

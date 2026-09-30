@@ -45,7 +45,7 @@ python Bushfire_analysis/bushfire_analysis.py
 - `Bushfire_analysis/fig5_wbi_map.png` to `fig8_fireplan_by_rating.png`
 - `connectivity-dashboard1/public/data/wbi_communities.geojson`: the file the dashboard loads
 
-`bushfire_analysis.py` writes `fig1` to `fig4`. Both scripts print their key
+`bushfire_analysis.py` writes `fig1` to `fig4`, and `slide_figures.py` (run after `wbi_index.py`) writes the two slide figures `fig9` and `fig10`. Both scripts print their key
 statistics to the terminal. Every parameter (hazard mapping, carrier radius,
 distance scale, bands) is defined at the top of `wbi_index.py`.
 
