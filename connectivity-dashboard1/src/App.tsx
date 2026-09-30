@@ -13,6 +13,7 @@ import type { LayerState } from "./types";
 const CommunitiesPage = lazy(() => import("./components/CommunitiesPage"));
 const Dashboard = lazy(() => import("./components/Dashboard"));
 const HelpPage = lazy(() => import("./components/HelpPage"));
+const ReportsPage = lazy(() => import("./components/ReportsPage"));
 
 const LAYER_KEYS = Object.keys(DEFAULT_LAYERS) as (keyof LayerState)[];
 
@@ -140,6 +141,7 @@ function App() {
               <Route path="/map" element={<MapLayout layers={layers} setLayers={setLayers} />} />
               <Route path="/community" element={<CommunitiesPage />} />
               <Route path="/communities" element={<CommunitiesPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
               <Route path="/analytics" element={<Dashboard />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />

@@ -6,6 +6,7 @@ import {
   UserGroupIcon,
   QuestionMarkCircleIcon,
   SignalIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
 interface SidebarProps {
@@ -51,6 +52,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <SidebarItem to="/map" label="Live Map" icon={<MapIcon className="h-5 w-5" />} onNavigate={onClose} />
             <SidebarItem to="/analytics" label="Analytics" icon={<ChartBarIcon className="h-5 w-5" />} onNavigate={onClose} />
             <SidebarItem to="/community" label="Communities" icon={<UserGroupIcon className="h-5 w-5" />} onNavigate={onClose} />
+            <SidebarItem to="/reports" label="Field Reports" icon={<ExclamationTriangleIcon className="h-5 w-5" />} onNavigate={onClose} />
           </nav>
         </div>
 

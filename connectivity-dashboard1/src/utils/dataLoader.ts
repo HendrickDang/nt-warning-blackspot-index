@@ -53,4 +53,9 @@ export const DATA_PATHS = {
   coverage: "/data/coverage.geojson",
   boundary: "/data/nt_boundary.geojson",
   bushfireRisk: "/data/Community_Bushfire_Risk.csv",
+  // Live reports come from the reports API (server/index.mjs) via the Vite
+  // proxy. The bundled snapshot is used as a read-only fallback when the API
+  // is not running (e.g. a built/preview deploy).
+  reports: "/api/reports",
+  reportsFallback: "/data/reports.json",
 } as const;
