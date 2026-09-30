@@ -2,6 +2,7 @@ import React from "react";
 import type { LayerState } from "../types";
 import { BURNT_AREA_MONTHS, HOTSPOT_BANDS } from "../bushfire";
 import { WBI_TIER_STYLES } from "../utils/wbi";
+import { TOWER_GLYPH } from "../utils/towerGlyph";
 
 interface Props {
   layers: LayerState;
@@ -253,11 +254,26 @@ function TowerLegend() {
   return (
     <LegendShell title="Cell towers">
       <div className="flex items-center gap-2 text-xs text-slate-600">
-        <span
-          className="h-3 w-3 rounded-full border border-emerald-700"
-          style={{ backgroundColor: "#10b981" }}
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4 shrink-0"
+          fill="none"
+          stroke={TOWER_GLYPH.stroke}
+          strokeWidth={TOWER_GLYPH.strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
           aria-hidden="true"
-        />
+        >
+          {TOWER_GLYPH.paths.map((d) => (
+            <path key={d} d={d} />
+          ))}
+          <circle
+            cx={TOWER_GLYPH.tip.cx}
+            cy={TOWER_GLYPH.tip.cy}
+            r={TOWER_GLYPH.tip.r}
+            fill={TOWER_GLYPH.fill}
+          />
+        </svg>
         NT tower site (ACCC / RFNSA)
       </div>
     </LegendShell>

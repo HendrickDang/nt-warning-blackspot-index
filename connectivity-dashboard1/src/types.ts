@@ -12,14 +12,19 @@ export interface LayerState {
   burntAreas: boolean;
 }
 
-/** Default visibility applied when no `?layers=` state is present. */
+/**
+ * Default visibility applied when no `?layers=` state is present.
+ * Deliberately minimal — only the NT boundary and communities start visible so
+ * the map opens uncluttered; towers, coverage and bushfire overlays are opt-in
+ * via the layers panel.
+ */
 export const DEFAULT_LAYERS: LayerState = {
-  towers: true,
+  towers: false,
   communities: true,
   coverage: false,
   baseMap: true,
   ntBoundary: true,
-  activeBushfires: true,
+  activeBushfires: false,
   burntAreas: false,
 };
 
@@ -61,6 +66,16 @@ export interface CommunityFeature {
     wbi_tier?: "Critical" | "High" | "Moderate" | "Low";
     wbi_rank?: number;
     strict_blackspot?: boolean;
+    // Pillar scores emitted by src/utils/wbiCalculators.ts when the WBI is
+    // computed in the browser instead of pre-baked into the GeoJSON.
+    connectivity_gap_score?: number;
+    hazard_score?: number;
+    proximity_score?: number;
+    digital_exclusion_score?: number;
+    hazard_risk?: "Extreme" | "High" | "Moderate" | "Low";
+    nearest_tower_carriers?: string;
+    nearest_tower_4g?: boolean;
+    nearest_tower_5g?: boolean;
   };
   geometry: {
     type: string;

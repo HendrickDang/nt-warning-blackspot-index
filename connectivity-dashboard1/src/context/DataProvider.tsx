@@ -7,6 +7,8 @@ import type {
 } from "../types";
 import { parseCsv } from "../utils/csv";
 import { DATA_PATHS, fetchJson, fetchText } from "../utils/dataLoader";
+import { loadDisasterEvents } from "../utils/disasters";
+import type { DisasterEvent } from "../utils/disasters";
 import {
   buildCoverageIndex,
   computeCommunityWBI,
@@ -14,7 +16,12 @@ import {
   extractNTTowerSites,
 } from "../utils/wbiCalculators";
 import { DataContext } from "./dataContext";
-import type { DataContextValue, LoadStatus, WbiStatus } from "./dataContext";
+import type {
+  DataContextValue,
+  DisasterStatus,
+  LoadStatus,
+  WbiStatus,
+} from "./dataContext";
 
 interface CoreData {
   communities: CommunityFeature[];
@@ -46,6 +53,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const coverageRef = useRef<GeoJsonCollection | null>(null);
   const coveragePromiseRef = useRef<Promise<GeoJsonCollection> | null>(null);
   const wbiPromiseRef = useRef<Promise<void> | null>(null);
+
+  const [disasterRequested, setDisasterRequested] = useState(false);
+  const [disasters, setDisasters] = useState<DisasterEvent[] | null>(null);
+  const [disasterStatus, setDisasterStatus] = useState<DisasterStatus>("idle");
+  const [disasterError, setDisasterError] = useState<string | null>(null);
+  const [disasterUpdatedAt, setDisasterUpdatedAt] = useState<number | null>(null);
+  const disasterPromiseRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -134,6 +148,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ? "loading"
         : "idle";
 
+  // Live disaster feed (GDACS). Loaded lazily when a page asks for it and
+  // refreshable on demand; the promise ref dedupes concurrent requests.
+  const loadDisasters = useCallback((force = false) => {
+    if (!force && disasterPromiseRef.current) return;
+    disasterPromiseRef.current = (async () => {
+      setDisasterStatus("loading");
+      setDisasterError(null);
+      try {
+        const events = await loadDisasterEvents();
+        setDisasters(events);
+        setDisasterUpdatedAt(Date.now());
+        setDisasterStatus("ready");
+      } catch (err) {
+        // Allow a later retry after a failed fetch.
+        disasterPromiseRef.current = null;
+        setDisasterError(
+          err instanceof Error ? err.message : "Failed to load live disaster data"
+        );
+        setDisasterStatus("error");
+      }
+    })();
+  }, []);
+
+  const ensureDisasters = useCallback(() => setDisasterRequested(true), []);
+  const refreshDisasters = useCallback(() => loadDisasters(true), [loadDisasters]);
+
+  useEffect(() => {
+    if (!disasterRequested || status !== "ready") return;
+    loadDisasters();
+  }, [disasterRequested, status, loadDisasters]);
+
   const value = useMemo<DataContextValue>(
     () => ({
       communities: core?.communities ?? EMPTY_COMMUNITIES,
@@ -146,6 +191,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       wbiError,
       ensureWbi,
       loadCoverage,
+      disasters,
+      disasterStatus,
+      disasterError,
+      disasterUpdatedAt,
+      ensureDisasters,
+      refreshDisasters,
     }),
     [
       core,
@@ -156,6 +207,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       wbiError,
       ensureWbi,
       loadCoverage,
+      disasters,
+      disasterStatus,
+      disasterError,
+      disasterUpdatedAt,
+      ensureDisasters,
+      refreshDisasters,
     ]
   );
 

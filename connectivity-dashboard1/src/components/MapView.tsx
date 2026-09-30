@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import L, { Map as LeafletMap, GeoJSON, TileLayer } from "leaflet";
 import type { GeoJsonObject } from "geojson";
@@ -10,9 +10,26 @@ import {
   ACTIVE_FIRE_LAYERS,
   BURNT_AREAS_LAYER,
 } from "../bushfire";
+import CommunitySearch from "./CommunitySearch";
 import { useData } from "../context/dataContext";
 import { escapeHtml, safeUrl } from "../utils/html";
 import { getWbiTierStyle } from "../utils/wbi";
+import { towerGlyphMarkup } from "../utils/towerGlyph";
+
+const TOWER_ICON_SIZE = 20;
+
+// Towers are drawn as a mast glyph rather than a dot so they are not read as
+// community markers. The glyph is anchored at the base of the mast, which is
+// the surveyed site location.
+const towerIcon = L.divIcon({
+  className: "tower-marker",
+  html:
+    `<div style="width:${TOWER_ICON_SIZE}px;height:${TOWER_ICON_SIZE}px;line-height:0;` +
+    `filter:drop-shadow(0 1px 1px rgba(15,23,42,0.35));">${towerGlyphMarkup(TOWER_ICON_SIZE)}</div>`,
+  iconSize: [TOWER_ICON_SIZE, TOWER_ICON_SIZE],
+  iconAnchor: [TOWER_ICON_SIZE / 2, 18],
+  popupAnchor: [0, -18],
+});
 
 interface Props {
   layers: LayerState;
@@ -119,8 +136,9 @@ export default function MapView({ layers }: Props) {
   // Pending "fly to community" request from the URL, applied once data is ready.
   const focusRef = useRef<{ lat: number; lng: number; name: string; commId: number | null } | null>(null);
 
-  // One canvas renderer keeps the heavy coverage polygons and the many tower
-  // markers off the DOM/SVG tree, which is far faster to pan and zoom.
+  // One canvas renderer keeps the heavy coverage polygons and the hundreds of
+  // community dots off the DOM/SVG tree, which is far faster to pan and zoom.
+  // Towers are the exception: they use divIcon symbols so they read as masts.
   const canvasRenderer = useMemo(() => L.canvas({ padding: 0.5 }), []);
 
   // WBI powers the community colouring and popups, so ask for it up front.
@@ -142,8 +160,11 @@ export default function MapView({ layers }: Props) {
     const map = L.map("map", { zoomControl: true }).setView([-19.0, 133.0], 5);
     mapRef.current = map;
 
+    // Coverage is a context layer: keep it at the bottom of the overlay stack,
+    // just above the base tiles (200) and below the NT boundary (400), towers
+    // (600) and communities (700), so it never hides the data drawn on top.
     map.createPane("coveragePane");
-    map.getPane("coveragePane")!.style.zIndex = "500";
+    map.getPane("coveragePane")!.style.zIndex = "250";
     map.createPane("nodesPane");
     map.getPane("nodesPane")!.style.zIndex = "600";
     map.createPane("communitiesPane");
@@ -285,13 +306,11 @@ export default function MapView({ layers }: Props) {
     const layer = L.geoJSON(towers as unknown as GeoJsonObject, {
       pane: "nodesPane",
       pointToLayer: (_feature, latlng) =>
-        L.circleMarker(latlng, {
-          renderer: canvasRenderer,
-          radius: 5,
-          fillColor: "#10b981",
-          color: "#047857",
-          weight: 1.5,
-          fillOpacity: 0.9,
+        L.marker(latlng, {
+          icon: towerIcon,
+          pane: "nodesPane",
+          // Hundreds of towers: keep them out of the tab order.
+          keyboard: false,
         }),
       onEachFeature: (feature, featureLayer) => {
         const props = (feature as unknown as { properties: TowerProperties }).properties;
@@ -384,7 +403,43 @@ export default function MapView({ layers }: Props) {
   }, [layers.coverage, loadCoverage, canvasRenderer, coverageError]);
 
   // ---------------------------------------------------------------------------
-  // 5. Handle URL focus parameters (e.g. "View on Map" from Communities)
+  // 5. COMMUNITY SEARCH — fly to the community picked in the search bar.
+  // ---------------------------------------------------------------------------
+  const searchCommunities = wbiCommunities ?? communities;
+
+  const handleSearchSelect = useCallback((community: CommunityFeature) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const [lng, lat] = community.geometry.coordinates;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    map.flyTo([lat, lng], 10, { duration: 1.2 });
+
+    const { community_id: communityId, community_name: name } = community.properties;
+    const marker =
+      typeof communityId === "number" ? communityMarkersRef.current.get(communityId) : undefined;
+    const communityLayer = communityLayerRef.current;
+
+    if (marker && communityLayer && map.hasLayer(communityLayer)) {
+      marker.openPopup();
+      return;
+    }
+
+    // Community markers are hidden, so show a lightweight popup instead.
+    L.popup()
+      .setLatLng([lat, lng])
+      .setContent(
+        `<div style="font-family:system-ui,sans-serif;padding:2px;">
+          <strong style="color:#4f46e5;font-size:13px;">${escapeHtml(name || "Community")}</strong>
+          <div style="color:#64748b;font-size:11px;margin-top:2px;">Selected from search</div>
+        </div>`
+      )
+      .openOn(map);
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // 6. Handle URL focus parameters (e.g. "View on Map" from Communities)
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const latStr = searchParams.get("lat");
@@ -426,6 +481,8 @@ export default function MapView({ layers }: Props) {
   return (
     <div className="relative w-full h-full min-h-screen z-0">
       <div id="map" className="w-full h-full absolute inset-0 bg-slate-50" />
+
+      <CommunitySearch communities={searchCommunities} onSelect={handleSearchSelect} />
 
       {busy && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-white/95 border border-slate-200 shadow-lg rounded-full px-4 py-2 flex items-center gap-2">

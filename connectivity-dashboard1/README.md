@@ -34,7 +34,9 @@ Use the left navigation to open:
 - **Live Map** — explore community locations, mobile coverage, tower sites, the
   NT boundary, active-fire hotspots, and burnt-area overlays. Use the layers
   panel to toggle map layers and click map features for details.
-- **Analytics** — review community counts, population, and regional summaries.
+- **Analytics** — review community counts, population, and regional summaries,
+  plus live natural-disaster exposure: active GDACS cyclones and floods matched
+  against NT communities (affected, or at risk within 25 km).
 - **Communities** — search, filter, sort, and inspect community records and
   their calculated Warning Blackspot Index (WBI) scores.
 - **Help & Support** — read the in-app methodology, data-source, and usage notes.
@@ -57,8 +59,9 @@ Community, coverage, tower, boundary, and bushfire-risk datasets are bundled in
 `public/data/`. Keep these files in place; the app loads them at runtime through
 a single shared data layer (see below). The basemap uses OpenStreetMap, and live
 fire overlays are served by the NAFI / FireNorth WMS, so those layers require an
-internet connection. Bundled datasets provide the underlying community and
-connectivity views.
+internet connection. The Analytics board also calls the GDACS API directly for
+live tropical-cyclone and flood footprints, so that panel needs network access
+too. Bundled datasets provide the underlying community and connectivity views.
 
 The shipped `towers.geojson` is filtered to Northern Territory sites and the
 `coverage.geojson` coordinates are rounded to ~1 m precision. Rerun
@@ -78,6 +81,10 @@ Support** page. Fire-layer attribution is also shown on the map.
 - **WBI engine** — `src/utils/wbiCalculators.ts` is the single source of truth
   for the Warning Blackspot Index (Connectivity Gap 35%, Natural Hazard 25%,
   Infrastructure Proximity 20%, Digital Exclusion 20%).
+- **Live disaster feed** — `src/utils/disasters.ts` fetches GDACS cyclone/flood
+  events, keeps those relevant to the NT, and classifies communities as
+  *affected* (inside a footprint) or *at risk* (within a 25 km buffer). Loading
+  is lazy and refreshable, mirroring the WBI/coverage pattern.
 - **Layer state in the URL** — visible map layers are encoded in the `?layers=`
   query parameter, and the community directory keeps its filters, sort and page
   in the URL so any view can be shared.
@@ -96,4 +103,5 @@ npm run prepare-data # regenerate the NT tower and coverage datasets
 ```
 
 The app uses React, TypeScript, Vite, Leaflet, and Plotly. Unit tests cover the
-pure WBI calculators, the data loader, CSV parsing, and HTML escaping.
+pure WBI calculators, the disaster-matching helpers, the data loader, CSV
+parsing, and HTML escaping.

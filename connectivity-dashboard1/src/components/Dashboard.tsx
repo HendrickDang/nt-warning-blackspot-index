@@ -9,6 +9,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useData } from "../context/dataContext";
 import { getWbiTierStyle, WBI_TIERS } from "../utils/wbi";
+import DisasterExposurePanel from "./DisasterExposurePanel";
 
 export default function Dashboard() {
   const { communities, wbiCommunities, status, error, wbiStatus, wbiError, ensureWbi } =
@@ -105,6 +106,9 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="space-y-6 mt-6">
+          {/* Live natural-disaster exposure (GDACS) */}
+          <DisasterExposurePanel />
+
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
@@ -198,9 +202,11 @@ export default function Dashboard() {
               <Plot
                 data={[
                   {
-                    labels: WBI_TIERS,
-                    values: wbi.tierCounts,
+                    x: WBI_TIERS,
+                    y: wbi.tierCounts,
                     type: "bar",
+                    text: wbi.tierCounts.map(String),
+                    textposition: "outside",
                     marker: { color: WBI_TIERS.map((t) => getWbiTierStyle(t).fill) },
                   },
                 ]}

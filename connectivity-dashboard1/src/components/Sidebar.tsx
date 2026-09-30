@@ -66,7 +66,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </div>
 
           <p className="px-3 text-[10px] leading-relaxed text-slate-500">
-            Prototype • Data: BushTel, ACCC/RFNSA, NAFI/FireNorth, NT LIS
+            Prototype • Data: BushTel, ACCC/RFNSA, NAFI/FireNorth, GDACS, NT LIS
           </p>
         </div>
       </aside>

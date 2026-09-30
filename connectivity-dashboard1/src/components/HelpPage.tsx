@@ -96,6 +96,12 @@ export default function HelpPage() {
               Map Service (<code>firenorth.org.au</code>).
             </div>
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+              <strong className="text-slate-800 block">GDACS — Live Cyclone &amp; Flood Alerts (GeoJSON)</strong>
+              Custodians: European Commission Joint Research Centre (JRC) / UN OCHA. The Global
+              Disaster Alert and Coordination System publishes footprint polygons for active tropical
+              cyclones and floods; these are matched to NT communities on the Analytics board.
+            </div>
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
               <strong className="text-slate-800 block">Northern Territory Administrative Boundary</strong>
               Custodian: NT Land Information System (LIS). Official geospatial boundary polygon of the Northern Territory.
             </div>
@@ -113,6 +119,7 @@ export default function HelpPage() {
             <li><strong>Bushfire (Live):</strong> Overlay live satellite fire hotspots detected in the last 24 hours and current-month burnt areas from the NAFI / FireNorth service to see active bushfire activity against community risk.</li>
             <li><strong>Communities Directory:</strong> Search and filter through communities by region, type, council, population, or WBI risk tier. Filters are reflected in the URL, so any view can be shared or bookmarked. Click any entry for its full breakdown or to fly directly to it on the map.</li>
             <li><strong>Analytics:</strong> Review regional vulnerability trends, the WBI distribution, risk-tier counts, and the highest-risk communities across the Northern Territory.</li>
+            <li><strong>Natural Disaster Exposure:</strong> On the Analytics board, live GDACS tropical-cyclone and flood footprints are matched to communities. Communities inside a footprint are flagged <em>Affected</em>, and those within a 25 km buffer as <em>At risk</em>, with a direct link to view them on the map.</li>
           </ul>
         </div>
       </div>

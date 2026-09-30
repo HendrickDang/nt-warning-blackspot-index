@@ -12,6 +12,18 @@ export interface BushfireRiskRecord {
   [key: string]: string | undefined;
 }
 
+/**
+ * Legacy CSV-style column names carried by older raw community datasets.
+ * Read only as a fallback; never part of the normalised GeoJSON properties.
+ */
+interface LegacyCommunityProperties {
+  COMMUNITY?: string;
+  RATING?: string;
+  rating?: string;
+  COMMTYPE?: string;
+  POPULATION?: number;
+}
+
 /** Minimal shape of the raw coverage GeoJSON (MultiPolygon features). */
 interface CoverageGeoJSON {
   features?: Array<{
@@ -137,6 +149,7 @@ export function computeCommunityWBI(
   bushfireRiskMap?: Map<string, string>
 ): CommunityFeature["properties"] {
   const props = { ...communityFeature.properties };
+  const legacy = props as CommunityFeature["properties"] & LegacyCommunityProperties;
   const [lon, lat] = communityFeature.geometry.coordinates;
 
   // Pillar 1: Connectivity Gap
@@ -169,9 +182,9 @@ export function computeCommunityWBI(
 
   // Pillar 2: Natural Hazard Exposure
   // Looks up risk rating from feature properties or provided CSV risk lookup map
-  const communityName = (props.community_name || props.COMMUNITY || "").toString().trim().toLowerCase();
-  
-  let rawRating = props.RATING || props.rating;
+  const communityName = (props.community_name || legacy.COMMUNITY || "").toString().trim().toLowerCase();
+
+  let rawRating = legacy.RATING || legacy.rating;
   if (!rawRating && bushfireRiskMap) {
     rawRating = bushfireRiskMap.get(communityName);
   }
@@ -191,8 +204,8 @@ export function computeCommunityWBI(
   const proximityScore = minDist > 100 ? 100 : minDist > 50 ? 80 : minDist > 35 ? 60 : minDist > 15 ? 40 : minDist > 5 ? 15 : 5;
 
   // Pillar 4: Digital Exclusion
-  const ctype = props.community_type || props.COMMTYPE || "Family Outstation";
-  const pop = props.population_count || props.POPULATION || 0;
+  const ctype = props.community_type || legacy.COMMTYPE || "Family Outstation";
+  const pop = props.population_count || legacy.POPULATION || 0;
   let digitalExclusion = 80;
 
   if (ctype === "Family Outstation") digitalExclusion = pop <= 10 ? 95 : pop <= 30 ? 88 : 82;
