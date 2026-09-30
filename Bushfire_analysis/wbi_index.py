@@ -21,7 +21,7 @@ Inputs (all open government data, see README and report Appendix A):
     Bushfire_analysis/Community_Bushfire_Risk.csv              Bushfires NT, 765 communities
     connectivity-dashboard1/public/data/communities.geojson    BushTel community profiles (792)
     connectivity-dashboard1/public/data/coverage.geojson       predicted mobile coverage polygons
-    connectivity-dashboard1/public/data/towers.geojson         mobile tower sites (RFNSA IDs)
+    Bushfire_analysis/data/towers_region.geojson               ACCC 2026 mobile tower sites (RFNSA IDs), NT region
 
 Outputs:
     Bushfire_analysis/outputs/wbi_scores.csv                   one row per community, every component
@@ -62,7 +62,11 @@ OUT.mkdir(exist_ok=True)
 RISK_CSV = HERE / "Community_Bushfire_Risk.csv"
 BUSHTEL_GEOJSON = DASH_DATA / "communities.geojson"
 COVERAGE_GEOJSON = DASH_DATA / "coverage.geojson"
-TOWERS_GEOJSON = DASH_DATA / "towers.geojson"
+# Regional subset of the ACCC Mobile Infrastructure Report 2026 site register,
+# kept with the analysis so results do not change when the dashboard's own
+# (NT-only, reformatted) tower file is edited. Includes border towers in WA,
+# SA and Qld, which can still serve NT communities.
+TOWERS_GEOJSON = HERE / "data" / "towers_region.geojson"
 BOUNDARY_GEOJSON = DASH_DATA / "nt_boundary.geojson"
 DASHBOARD_OUT = DASH_DATA / "wbi_communities.geojson"
 
@@ -219,7 +223,8 @@ def load_tower_sites() -> pd.DataFrame:
         b = TOWER_BBOX
         if not (b["lon_min"] <= lon <= b["lon_max"] and b["lat_min"] <= lat <= b["lat_max"]):
             continue
-        carrier = f["properties"].get("MNO/Optus-TPG MOCN") or "Unknown"
+        props = f["properties"]
+        carrier = props.get("MNO/Optus-TPG MOCN") or props.get("carrier") or "Unknown"
         for c in CARRIER_ALIASES.get(carrier, {carrier}):
             rows.append({"lat": round(lat, 4), "lon": round(lon, 4), "carrier": c})
     t = pd.DataFrame(rows)

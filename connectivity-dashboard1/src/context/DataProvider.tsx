@@ -9,12 +9,7 @@ import { parseCsv } from "../utils/csv";
 import { DATA_PATHS, fetchJson, fetchText } from "../utils/dataLoader";
 import { loadDisasterEvents } from "../utils/disasters";
 import type { DisasterEvent } from "../utils/disasters";
-import {
-  buildCoverageIndex,
-  computeCommunityWBI,
-  createBushfireRiskMap,
-  extractNTTowerSites,
-} from "../utils/wbiCalculators";
+import { createBushfireRiskMap } from "../utils/wbiCalculators";
 import { DataContext } from "./dataContext";
 import type {
   DataContextValue,
@@ -118,27 +113,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // effect body; the in-flight promise ref dedupes StrictMode double-runs.
     wbiPromiseRef.current = (async () => {
       try {
-        const coverage = await loadCoverage();
-        const coverageRings = buildCoverageIndex(coverage);
-        const towerSites = extractNTTowerSites(core.towers);
-        const enriched = core.communities.map((feature) => ({
-          ...feature,
-          properties: computeCommunityWBI(
-            feature,
-            towerSites,
-            coverageRings,
-            core.riskMap
-          ),
-        }));
-        setWbiCommunities(enriched);
+        // The index is computed once in Python (Bushfire_analysis/wbi_index.py)
+        // and shipped as a static file, so the dashboard shows exactly the
+        // numbers in the report and needs no network.
+        const scored = await fetchJson<CommunitiesGeoJson>(DATA_PATHS.wbi);
+        setWbiCommunities(scored.features ?? []);
       } catch (err) {
         wbiPromiseRef.current = null;
         setWbiError(
-          err instanceof Error ? err.message : "Failed to compute the WBI index"
+          err instanceof Error ? err.message : "Failed to load WBI scores (run Bushfire_analysis/wbi_index.py)"
         );
       }
     })();
-  }, [wbiRequested, status, core, loadCoverage]);
+  }, [wbiRequested, status, core]);
 
   const wbiStatus: WbiStatus = wbiError
     ? "error"

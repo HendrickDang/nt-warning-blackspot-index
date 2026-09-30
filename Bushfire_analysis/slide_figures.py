@@ -47,7 +47,7 @@ def dark_axes(ax):
 def blackspot_map(path: Path):
     blackspots = scores[scores["strict_blackspot"]]
     others = scores[~scores["strict_blackspot"]]
-    towers = json.loads((DASH_DATA / "towers.geojson").read_text(encoding="utf-8"))["features"]
+    towers = json.loads((HERE / "data" / "towers_region.geojson").read_text(encoding="utf-8"))["features"]
     tx = [f["geometry"]["coordinates"][0] for f in towers]
     ty = [f["geometry"]["coordinates"][1] for f in towers]
 

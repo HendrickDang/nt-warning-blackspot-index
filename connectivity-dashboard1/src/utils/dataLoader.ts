@@ -53,4 +53,6 @@ export const DATA_PATHS = {
   coverage: "/data/coverage.geojson",
   boundary: "/data/nt_boundary.geojson",
   bushfireRisk: "/data/Community_Bushfire_Risk.csv",
+  /** WBI scores computed by Bushfire_analysis/wbi_index.py (single source of truth). */
+  wbi: "/data/wbi_communities.geojson",
 } as const;

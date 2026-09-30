@@ -120,7 +120,7 @@ export default function Dashboard() {
             <StatCard
               label="Recorded Population"
               value={stats.totalPop.toLocaleString()}
-              hint="ABS & Homelands reports"
+              hint="Risk dataset & BushTel (recorded only)"
               icon={<UsersIcon className="h-5 w-5 text-emerald-500" />}
             />
             <StatCard
@@ -132,7 +132,7 @@ export default function Dashboard() {
             <StatCard
               label="Critical Blackspots"
               value={criticalCount.toLocaleString()}
-              hint="WBI ≥ 75 (severe warning risk)"
+              hint="WBI ≥ 60 (Critical band)"
               icon={<ExclamationTriangleIcon className="h-5 w-5 text-red-500" />}
             />
           </div>

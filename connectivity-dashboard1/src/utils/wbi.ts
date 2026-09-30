@@ -1,3 +1,4 @@
+// Bands match Bushfire_analysis/wbi_index.py (BANDS).
 // Shared WBI tier metadata so the map, tables, cards and charts all speak the
 // same visual language. Colours mirror the badge classes used in the
 // Communities page.
@@ -6,7 +7,7 @@ export type WbiTier = "Critical" | "High" | "Moderate" | "Low";
 
 export interface WbiTierStyle {
   tier: WbiTier;
-  /** Score band, e.g. "≥ 75". */
+  /** Score band, e.g. "≥ 60". */
   range: string;
   /** Marker fill colour. */
   fill: string;
@@ -19,28 +20,28 @@ export interface WbiTierStyle {
 const TIER_STYLES: Record<WbiTier, WbiTierStyle> = {
   Critical: {
     tier: "Critical",
-    range: "≥ 75",
+    range: "≥ 60",
     fill: "#dc2626",
     stroke: "#991b1b",
     badge: "bg-red-100 text-red-800 border-red-300 font-bold",
   },
   High: {
     tier: "High",
-    range: "60 – 74",
+    range: "50 – 59",
     fill: "#ea580c",
     stroke: "#9a3412",
     badge: "bg-orange-100 text-orange-800 border-orange-300 font-bold",
   },
   Moderate: {
     tier: "Moderate",
-    range: "40 – 59",
+    range: "35 – 49",
     fill: "#eab308",
     stroke: "#a16207",
     badge: "bg-yellow-100 text-yellow-800 border-yellow-300 font-semibold",
   },
   Low: {
     tier: "Low",
-    range: "< 40",
+    range: "< 35",
     fill: "#10b981",
     stroke: "#047857",
     badge: "bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold",
@@ -62,9 +63,9 @@ const FALLBACK: WbiTierStyle = {
 };
 
 export function wbiTierFromScore(score: number): WbiTier {
-  if (score >= 75) return "Critical";
-  if (score >= 60) return "High";
-  if (score >= 40) return "Moderate";
+  if (score >= 60) return "Critical";
+  if (score >= 50) return "High";
+  if (score >= 35) return "Moderate";
   return "Low";
 }
 
