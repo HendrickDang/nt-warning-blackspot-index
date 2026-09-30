@@ -88,47 +88,78 @@ python Bushfire_analysis/slide_figures.py
 All parameters (hazard mapping, coverage radius, carrier radius, distance cap, bands) are
 defined at the top of `wbi_index.py`, and key steps are commented in the code.
 
-## 5. Run the dashboard
+## 5. Run the dashboard and mobile app (step by step)
 
-Requires Node.js 18 or newer.
+Requires Node.js 22 or newer. The full demo uses three terminals, all opened in this
+folder (the repository root). Leave each one running.
+
+**Step 1. Start the reports API (terminal 1)**
 
 ```sh
 cd connectivity-dashboard1
 npm install
-npm run dev
+npm run server
 ```
 
-Open http://localhost:5173. The dashboard reads the scores produced by `wbi_index.py`,
-so it shows the same numbers as the report. It runs from bundled data with no server.
+The terminal shows `Warning Blackspot reports API listening on http://0.0.0.0:8787`.
+`0.0.0.0` only means "listening on all network interfaces"; it cannot be opened in a
+browser. To check the API, open **http://localhost:8787/api/health** (a short JSON
+reply) or **http://localhost:8787/api/reports** (the saved reports). The API has no home
+page, so http://localhost:8787/ on its own returns "Not found".
 
-Optional, to receive reports from the mobile app, start the reports API in a second terminal:
+**Step 2. Start the dashboard (terminal 2)**
 
 ```sh
 cd connectivity-dashboard1
-npm run server        # http://localhost:8787
+npm run dev
 ```
 
-Checks: `npm test` (49 tests), `npm run lint`, `npm run build`.
+Open **http://localhost:5173**.
 
-On Windows, `start-blackspot.cmd` does all of this in one step (install, API, dashboard,
-and `adb reverse` for a phone connected by USB).
+- **Live Map** and **Communities** show the WBI for all 765 communities, read from the
+  output of `wbi_index.py`, so the numbers match the report. These pages work without step 1.
+- **Analytics** shows charts of risk, reachability and live disaster alerts.
+- **Field Reports** shows reports received by the API in step 1 (the dashboard forwards
+  `/api` requests to port 8787). It starts with 3 demonstration reports.
+- **Help & Support** explains the method.
 
-## 6. Run the mobile app
+Checks (optional): `npm test` (49 tests), `npm run lint`, `npm run build`.
 
-Requires Node.js 22 or newer and the Expo Go app on a phone (or an emulator).
+**Step 3. Start the mobile app (terminal 3)**
+
+Install **Expo Go** (latest version) on an Android or iOS phone first. Expo Go asks you
+to be signed in, so create a free account at https://expo.dev/signup, sign in to Expo Go
+on the phone (profile icon, top right) and sign in on the computer with the same account:
 
 ```sh
 cd mobile
 npm install
+npx expo login
 npx expo start
 ```
 
-Scan the QR code with Expo Go. Reports are saved on the device (AsyncStorage), marked
-`queued` while offline, and sent to the reports API when NetInfo detects a connection.
-If the API cannot be reached, reports stay queued and the app keeps working.
-See `mobile/README.md` for API address settings and native builds.
+A QR code appears in the terminal. Scan it with Expo Go (Android) or the Camera app
+(iPhone). The phone and computer must be on the same Wi-Fi; if the network blocks this,
+stop it and run `npx expo start --tunnel` instead.
 
-## 7. Run the web prototype
+**Step 4. Send a test report**
+
+1. In the app, tap **Report**, choose a hazard, take a photo and tap **Send**.
+2. On the dashboard's **Field Reports** page (it refreshes automatically), the new report
+   appears with its GPS position and photo. **View on Map** shows where it was sent from.
+3. To see the offline behaviour, turn on flight mode and send another report. It waits in
+   the **Queue** tab as `queued` and is sent automatically when the phone reconnects.
+
+Notes:
+
+- The app finds the API automatically through the Expo connection. If it cannot, see
+  `mobile/README.md` to set `EXPO_PUBLIC_API_URL`.
+- Pressing `w` in terminal 3 opens the app in a web browser for a quick look. The live
+  map and camera only work on a phone, so the browser shows the offline map instead.
+- On Windows, `start-blackspot.cmd` (in this folder) runs steps 1 and 2 in one go
+  and links a USB-connected Android phone with `adb reverse`.
+
+## 6. Run the web prototype
 
 Requires Node.js 22.13 or newer. See `Warning_Blackspot_App_Source_Code/HOW_TO_RUN.md`.
 
@@ -142,7 +173,7 @@ Use `npx vite` rather than `npm run dev`: the `dev` script sets an environment v
 in Unix style, which fails in the Windows command prompt. Open the local address shown
 in the terminal.
 
-## 8. Data sources
+## 7. Data sources
 
 All sources are open government data. Full provenance (custodian, download date, licence,
 limitations) is in Appendix A of the report.
@@ -155,7 +186,7 @@ limitations) is in Appendix A of the report.
 | NT Fire History (2025 season) | NT Fire and Emergency Services | CC BY 4.0 | Context |
 | Administrative boundaries | Geoscape Australia | See data.gov.au | Map outline |
 
-## 9. Known limitations
+## 8. Known limitations
 
 - Risk ratings date from June 2020, and the method behind them is not published.
 - Coverage is predicted, not measured. For 28 communities the coverage polygons and the
@@ -167,7 +198,7 @@ limitations) is in Appendix A of the report.
   should be checked with communities and land councils before any decision.
 - The reporting apps are prototypes with demonstration data, not an official warning system.
 
-## 10. AI use
+## 9. AI use
 
 AI tools were used during the project. What they were used for and how their output was
 checked is declared in Appendix B of the report.

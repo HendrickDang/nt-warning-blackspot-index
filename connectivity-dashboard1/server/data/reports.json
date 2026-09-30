@@ -31,28 +31,5 @@
     "notes": "Smoke visible to the north-east.",
     "reportedAt": "2026-09-30T01:05:00.000Z",
     "receivedAt": "2026-09-30T01:05:04.000Z"
-  },
-  {
-    "id": "1790742058592",
-    "category": "Dry grass",
-    "severity": "High",
-    "latitude": -12.370223,
-    "longitude": 130.869338,
-    "accuracy": 100,
-    "notes": "Test phto",
-    "reportedAt": "2026-09-30T04:20:58.592Z",
-    "receivedAt": "2026-09-30T04:20:58.059Z"
-  },
-  {
-    "id": "1790742072327",
-    "category": "Dry grass",
-    "severity": "High",
-    "latitude": -12.370223,
-    "longitude": 130.869338,
-    "accuracy": 100,
-    "notes": "Tét",
-    "reportedAt": "2026-09-30T04:21:12.327Z",
-    "receivedAt": "2026-09-30T04:21:11.938Z",
-    "photoUrl": "/api/photos/1790742072327.jpg"
   }
 ]
