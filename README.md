@@ -135,11 +135,12 @@ Requires Node.js 22.13 or newer. See `Warning_Blackspot_App_Source_Code/HOW_TO_R
 ```sh
 cd Warning_Blackspot_App_Source_Code
 npm install
-npm run dev
+npx vite
 ```
 
-On Windows, run these commands in Git Bash or WSL, because the `dev` script sets an
-environment variable in Unix style.
+Use `npx vite` rather than `npm run dev`: the `dev` script sets an environment variable
+in Unix style, which fails in the Windows command prompt. Open the local address shown
+in the terminal.
 
 ## 8. Data sources
 
