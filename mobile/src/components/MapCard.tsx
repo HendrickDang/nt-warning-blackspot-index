@@ -40,7 +40,7 @@ export function MapCard() {
             opacity={0.4}
           />
         ))}
-        <G rotation={-38} originX={330} originY={105}>
+        <G transform="rotate(-38 330 105)">
           <Ellipse
             cx={330}
             cy={105}

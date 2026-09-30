@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { MapCard } from "@/components/MapCard";
 import { MAP_RISK_AREAS, WADEYE, type MapRiskArea } from "@/data/hazards";
@@ -148,8 +148,9 @@ export function MapViewCard({ focus = null }: MapViewCardProps) {
     );
   }, [focus]);
 
-  // Offline: show the decorative, fully local map instead.
-  if (!online) return <MapCard />;
+  // Offline, or running in a web browser (react-native-webview has no web
+  // support): show the fully local map instead. The live map runs on Android/iOS.
+  if (!online || Platform.OS === "web") return <MapCard />;
 
   const changeLayer = (next: MapLayer) => {
     setLayer(next);
