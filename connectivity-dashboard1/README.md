@@ -33,7 +33,10 @@ Use the left navigation to open:
 
 - **Live Map** — explore community locations, mobile coverage, tower sites, the
   NT boundary, active-fire hotspots, and burnt-area overlays. Use the layers
-  panel to toggle map layers and click map features for details.
+  panel to toggle map layers and click map features for details. A **My location**
+  button centres the map on your current GPS position.
+- **Field Reports** — hazard reports submitted from the Warning Blackspot mobile
+  app, with captured GPS positions, severity filters and a "View on Map" action.
 - **Analytics** — review community counts, population, and regional summaries.
 - **Communities** — search, filter, sort, and inspect community records and
   their calculated Warning Blackspot Index (WBI) scores.
@@ -50,6 +53,35 @@ The prototype WBI is a 0–100 composite score using four weighted dimensions:
 
 The in-app Help page describes the scoring inputs and data provenance in more
 detail.
+
+## Field reports API
+
+The mobile app uploads hazard reports to a small zero-dependency Node server in
+`server/`. Run it alongside the dashboard:
+
+```bash
+npm run server        # http://0.0.0.0:8787  (GET/POST /api/reports, GET /api/health)
+npm run dev           # Vite dev server proxies /api -> localhost:8787
+```
+
+Reports are persisted to `server/data/reports.json` (seeded with demo data) and
+appear on the map's **Field Reports** layer, the **Field Reports** page, and are
+refreshed automatically every 5 seconds. If the server is not running the
+dashboard falls back to the bundled snapshot in `public/data/reports.json`.
+
+### Report photos
+
+A report may include a photo. The app resizes it to 1280 px / JPEG q0.6, sends
+it as a base64 data URI, and the server writes it to `server/data/photos/` —
+storing only `photoUrl` (`/api/photos/<id>.jpg`) in `reports.json` so that file
+stays small and readable. Photos render as thumbnails on the Field Reports page
+(click to enlarge) and inside the map popups.
+
+Uploaded photos are runtime data and are git-ignored.
+
+The server binds `0.0.0.0` so a phone on the same network can reach it at
+`http://<your-machine-ip>:8787`. Set the app's API URL with
+`EXPO_PUBLIC_API_URL` (see `../mobile/README.md`).
 
 ## Data and network access
 
@@ -88,6 +120,7 @@ Run commands from `connectivity-dashboard1/`:
 
 ```bash
 npm run dev          # start the Vite development server
+npm run server       # start the field-reports API (server/index.mjs)
 npm run build        # type-check and create the production bundle in dist/
 npm run preview      # preview the production bundle after building
 npm run lint         # run ESLint

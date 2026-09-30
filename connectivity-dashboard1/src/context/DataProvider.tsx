@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type {
   CommunityFeature,
+  FieldReport,
   GeoJsonCollection,
   TowerFeatureCollection,
 } from "../types";
@@ -14,7 +15,15 @@ import {
   extractNTTowerSites,
 } from "../utils/wbiCalculators";
 import { DataContext } from "./dataContext";
-import type { DataContextValue, LoadStatus, WbiStatus } from "./dataContext";
+import type {
+  DataContextValue,
+  LoadStatus,
+  ReportsSource,
+  ReportsStatus,
+  WbiStatus,
+} from "./dataContext";
+
+const REPORTS_POLL_MS = 5000;
 
 interface CoreData {
   communities: CommunityFeature[];
@@ -42,6 +51,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [wbiRequested, setWbiRequested] = useState(false);
   const [wbiCommunities, setWbiCommunities] = useState<CommunityFeature[] | null>(null);
   const [wbiError, setWbiError] = useState<string | null>(null);
+
+  const [reports, setReports] = useState<FieldReport[]>([]);
+  const [reportsStatus, setReportsStatus] = useState<ReportsStatus>("loading");
+  const [reportsError, setReportsError] = useState<string | null>(null);
+  const [reportsSource, setReportsSource] = useState<ReportsSource | null>(null);
 
   const coverageRef = useRef<GeoJsonCollection | null>(null);
   const coveragePromiseRef = useRef<Promise<GeoJsonCollection> | null>(null);
@@ -93,6 +107,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     return coveragePromiseRef.current;
   }, []);
+
+  /**
+   * Fetch community field reports from the reports API. If the API is not
+   * running (e.g. a static preview build), fall back to the bundled snapshot.
+   */
+  const loadReports = useCallback(async () => {
+    try {
+      const data = await fetchJson<{ reports: FieldReport[] }>(DATA_PATHS.reports);
+      const next = Array.isArray(data.reports) ? data.reports : [];
+      setReports((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+      setReportsStatus("ready");
+      setReportsError(null);
+      setReportsSource("api");
+    } catch (err) {
+      try {
+        const snapshot = await fetchJson<FieldReport[]>(DATA_PATHS.reportsFallback);
+        const next = Array.isArray(snapshot) ? snapshot : [];
+        setReports((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+        setReportsStatus("ready");
+        setReportsSource("fallback");
+        setReportsError(err instanceof Error ? err.message : "Reports API unavailable");
+      } catch {
+        setReportsStatus("error");
+        setReportsError("Reports API and bundled snapshot are both unavailable");
+      }
+    }
+  }, []);
+
+  // Poll for new reports so a submission on the phone appears on the dashboard.
+  useEffect(() => {
+    let cancelled = false;
+    const tick = () => {
+      if (!cancelled) void loadReports();
+    };
+    tick();
+    const id = setInterval(tick, REPORTS_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [loadReports]);
 
   const ensureWbi = useCallback(() => setWbiRequested(true), []);
 
@@ -146,6 +201,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       wbiError,
       ensureWbi,
       loadCoverage,
+      reports,
+      reportsStatus,
+      reportsError,
+      reportsSource,
+      refreshReports: loadReports,
     }),
     [
       core,
@@ -156,6 +216,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       wbiError,
       ensureWbi,
       loadCoverage,
+      reports,
+      reportsStatus,
+      reportsError,
+      reportsSource,
+      loadReports,
     ]
   );
 

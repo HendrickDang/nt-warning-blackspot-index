@@ -7,6 +7,8 @@ export interface LayerState {
   coverage: boolean;
   baseMap: boolean;
   ntBoundary: boolean;
+  // Community-submitted field reports (from the mobile app)
+  reports: boolean;
   // Live bushfire overlays (NAFI / FireNorth WMS)
   activeBushfires: boolean;
   burntAreas: boolean;
@@ -19,8 +21,34 @@ export const DEFAULT_LAYERS: LayerState = {
   coverage: false,
   baseMap: true,
   ntBoundary: true,
+  reports: true,
   activeBushfires: true,
   burntAreas: false,
+};
+
+export type ReportSeverity = "Low" | "Medium" | "High" | "Urgent";
+
+/** A hazard report submitted from the Warning Blackspot mobile app. */
+export interface FieldReport {
+  id: string;
+  category: string;
+  severity: ReportSeverity;
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  notes: string;
+  reportedAt: string;
+  receivedAt?: string;
+  /** Same-origin URL of the attached photo, when the report has one. */
+  photoUrl?: string;
+}
+
+/** Marker colour per report severity. */
+export const REPORT_SEVERITY_COLORS: Record<ReportSeverity, string> = {
+  Low: "#22c55e",
+  Medium: "#eab308",
+  High: "#f97316",
+  Urgent: "#dc2626",
 };
 
 export interface CommunityFeature {

@@ -1,5 +1,6 @@
 import React from "react";
-import type { LayerState } from "../types";
+import type { LayerState, ReportSeverity } from "../types";
+import { REPORT_SEVERITY_COLORS } from "../types";
 import { BURNT_AREA_MONTHS, HOTSPOT_BANDS } from "../bushfire";
 import { WBI_TIER_STYLES } from "../utils/wbi";
 
@@ -52,6 +53,21 @@ export default function LayersPanel({ layers, setLayers }: Props) {
             onChange={() => toggle("coverage")}
           />
           {layers.coverage && <CoverageLegend />}
+        </Section>
+
+        {/* Field Reports (mobile submissions) */}
+        <Section
+          title="Field Reports (Live)"
+          onSelectAll={() => toggleSection(["reports"], true)}
+          onClearAll={() => toggleSection(["reports"], false)}
+        >
+          <CheckboxItem
+            label="Hazard Reports"
+            badge="Live"
+            checked={layers.reports}
+            onChange={() => toggle("reports")}
+          />
+          {layers.reports && <ReportLegend />}
         </Section>
 
         {/* Live Bushfire (NAFI / FireNorth WMS) */}
@@ -260,6 +276,29 @@ function TowerLegend() {
         />
         NT tower site (ACCC / RFNSA)
       </div>
+    </LegendShell>
+  );
+}
+
+function ReportLegend() {
+  const severities: ReportSeverity[] = ["Low", "Medium", "High", "Urgent"];
+  return (
+    <LegendShell title="Hazard report severity">
+      <ul className="space-y-1.5">
+        {severities.map((severity) => (
+          <li key={severity} className="flex items-center gap-2 text-xs text-slate-600">
+            <span
+              className="h-3.5 w-3.5 rounded-full border-2 border-white shadow"
+              style={{ backgroundColor: REPORT_SEVERITY_COLORS[severity] }}
+              aria-hidden="true"
+            />
+            {severity}
+          </li>
+        ))}
+      </ul>
+      <p className="text-[10px] text-slate-400 mt-2 leading-snug">
+        Submitted from the Warning Blackspot mobile app. Click a marker for details.
+      </p>
     </LegendShell>
   );
 }

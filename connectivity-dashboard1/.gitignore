@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Uploaded report photos (runtime data, not source)
+server/data/photos/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

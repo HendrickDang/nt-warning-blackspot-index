@@ -1,12 +1,15 @@
 import { createContext, useContext } from "react";
 import type {
   CommunityFeature,
+  FieldReport,
   GeoJsonCollection,
   TowerFeatureCollection,
 } from "../types";
 
 export type LoadStatus = "loading" | "ready" | "error";
 export type WbiStatus = "idle" | "loading" | "ready" | "error";
+export type ReportsStatus = "loading" | "ready" | "error";
+export type ReportsSource = "api" | "fallback";
 
 export interface DataContextValue {
   /** Raw community features (no WBI enrichment). */
@@ -24,6 +27,15 @@ export interface DataContextValue {
   ensureWbi: () => void;
   /** Loads and caches the coverage GeoJSON (shared by the map and WBI). */
   loadCoverage: () => Promise<GeoJsonCollection>;
+
+  /** Community-submitted field reports (from the mobile app). */
+  reports: FieldReport[];
+  reportsStatus: ReportsStatus;
+  reportsError: string | null;
+  /** Where the current reports came from: live API or bundled fallback. */
+  reportsSource: ReportsSource | null;
+  /** Force an immediate refetch of reports. */
+  refreshReports: () => Promise<void>;
 }
 
 export const DataContext = createContext<DataContextValue | null>(null);
